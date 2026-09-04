@@ -29,3 +29,12 @@ Esta version crea student_registry y aplica la regla:
 UNA CEDULA = UN ESTUDIANTE = UN SOLO GRUPO.
 Si una cedula intenta registrarse en otro grupo, el sistema la rechaza.
 Primero ejecute supabase.sql completo y despues publique los archivos en GitHub Pages.
+
+
+MEJORA PANEL DOCENTE
+- Estudiantes registrados: una sola fila por cédula desde student_registry.
+- Historial de asistencias: una fila por asistencia/clase.
+- Exportación CSV separada para estudiantes y asistencias.
+- No permite iniciar una nueva clase si ya existe otra clase activa.
+
+IMPORTANTE: vuelve a ejecutar supabase.sql para habilitar la lectura docente de student_registry.

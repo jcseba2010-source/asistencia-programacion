@@ -247,6 +247,14 @@ alter table public.student_registry enable row level security;
 revoke all on table public.student_registry from anon;
 revoke all on table public.student_registry from authenticated;
 
+-- El panel docente autenticado puede consultar el registro unico de estudiantes.
+grant select on table public.student_registry to authenticated;
+drop policy if exists "student_registry_teacher_read" on public.student_registry;
+create policy "student_registry_teacher_read"
+on public.student_registry for select
+to authenticated
+using (true);
+
 -- Evita saltarse la validacion insertando directamente en attendance desde la web.
 revoke insert on table public.attendance from anon;
 
