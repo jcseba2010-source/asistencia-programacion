@@ -1,0 +1,14 @@
+CORRECCIÓN DE CARGA DE MATERIAS
+
+1. En Supabase > SQL Editor, ejecuta:
+   CORREGIR_CARGA_MATERIAS.sql
+
+2. Sube a GitHub Pages los archivos de este ZIP reemplazando los actuales.
+
+3. Espera 1–2 minutos y haz Ctrl+F5.
+
+Resultado:
+- Escribir el código manualmente SÍ muestra la asignatura y el grupo.
+- El código manual NO permite registrar asistencia.
+- Para registrar asistencia sigue siendo obligatorio el QR dinámico vigente.
+- No se borra ningún estudiante, asistencia, materia ni grupo.

@@ -254,24 +254,29 @@ async function loadSession(){
     return;
   }
 
-  // Código escrito manualmente: permite CONSULTAR la clase, pero nunca registrar asistencia.
-  const {data,error}=await client.from("sessions")
-    .select("id,subject,group,code,active,expires_at")
-    .eq("code",code)
-    .eq("active",true)
-    .maybeSingle();
-
+  // Código escrito manualmente: consulta pública de la clase mediante RPC.
+  // Permite mostrar asignatura y grupo, pero NO registrar asistencia.
+  const {data,error}=await client.rpc("consultar_clase_por_codigo",{p_code:code});
   if(error)throw error;
-  if(!data)throw new Error("No existe una clase activa con ese código.");
 
-  session={id:data.id,subject:data.subject,group:data.group,expires_at:data.expires_at,code:data.code};
-  asig.textContent=session.subject;
-  grupo.textContent=session.group;
+  const r=Array.isArray(data)?data[0]:data;
+  if(!r||r.ok===false)throw new Error((r&&r.message)||"No existe una clase activa con ese código.");
+
+  session={
+    id:r.session_ref,
+    subject:r.subject,
+    group:r.group_name,
+    expires_at:r.class_expires_at,
+    code:code
+  };
+
+  asig.textContent=session.subject||"—";
+  grupo.textContent=session.group||"—";
   vigencia.textContent="Clase activa · Consulta por código";
   classInfo.style.display="block";
-  grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  grupoForm.innerHTML=`<option value="${session.group||""}">${session.group||"Sin grupo"}</option>`;
   status.textContent="Clase cargada. Para registrar asistencia debes escanear el QR dinámico vigente.";
-  msg("err","Clase encontrada. El código manual solo permite consultar materia y grupo; para registrar asistencia escanea el QR dinámico del aula.");
+  msg("err","Clase encontrada. Puedes consultar materia y grupo; para registrar asistencia escanea el QR dinámico vigente.");
  }catch(e){
   session=null;
   classInfo.style.display="none";
