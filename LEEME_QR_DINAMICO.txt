@@ -1,0 +1,15 @@
+QR DINAMICO DE 30 SEGUNDOS
+
+1. Primero asegúrate de haber ejecutado ACTUALIZAR_MULTIMATERIA.sql si aún no lo hiciste.
+2. Ejecuta ACTUALIZAR_QR_DINAMICO_30S.sql en Supabase > SQL Editor > Run.
+3. Luego sube los archivos del ZIP a GitHub Pages reemplazando los anteriores.
+4. Haz Ctrl+F5.
+
+FUNCIONAMIENTO:
+- El panel genera un QR nuevo cada 30 segundos.
+- El QR anterior deja de ser válido cuando se genera el siguiente.
+- Hay un margen técnico máximo de 36 segundos por problemas de red.
+- Escribir solamente el código de clase NO permite registrar asistencia: se requiere el token del QR vigente.
+- La validación se realiza en Supabase, no solo en JavaScript.
+- Se mantienen multimateria, matrícula por asignatura/grupo y una asistencia por sesión.
+- No se borran datos existentes al ejecutar esta actualización.

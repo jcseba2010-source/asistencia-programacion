@@ -210,7 +210,7 @@ td{
 <div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button onclick="openNew()">+ Iniciar nueva clase</button><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
 <div class="grid"><section class="card"><h2>Clase activa</h2><div id="activeEmpty" class="muted">No hay una clase activa.</div><div id="activeClass" class="hidden">
-<p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">Proyecta este QR para que los estudiantes registren asistencia.</p></div>
+<p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">QR dinámico: cambia automáticamente cada 30 segundos.</p><p><b>Vigencia del QR:</b> <span id="qrCountdown">--</span> s</p><p id="qrStatus" class="muted">Generando token seguro...</p></div>
 <button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
 <section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. Una misma cédula puede estar matriculada en varias asignaturas y grupos.</p><div class="filters">
@@ -400,9 +400,51 @@ function updateGroups(){
   group.innerHTML=list.map(x=>`<option value="${esc(x.group_name)}">${esc(x.group_name)}</option>`).join("");
   if(!list.length) group.innerHTML='<option value="">No hay grupos creados para esta asignatura</option>';
 }
-function renderActive(){activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.href.replace("docente.html","index.html").split("?")[0]+"?clase="+active.code)}
-async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;active=null;await renderAll()}catch(e){alert(e.message)}}
-function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código copiado: "+active.code)}
+let qrRotateTimer=null, qrCountdownTimer=null, currentQrToken=null, currentQrExpiresAt=null;
+function stopQrRotation(){
+ if(qrRotateTimer){clearInterval(qrRotateTimer);qrRotateTimer=null;}
+ if(qrCountdownTimer){clearInterval(qrCountdownTimer);qrCountdownTimer=null;}
+ currentQrToken=null;currentQrExpiresAt=null;
+}
+async function rotateDynamicQr(){
+ if(!active||!client)return;
+ try{
+  const {data,error}=await client.rpc("rotate_qr_token",{p_session_ref:active.id});
+  if(error)throw error;
+  const r=Array.isArray(data)?data[0]:data;
+  if(!r||!r.token)throw new Error("No se recibió el token dinámico.");
+  currentQrToken=r.token;currentQrExpiresAt=new Date(r.expires_at);
+  const base=location.href.replace("docente.html","index.html").split("?")[0];
+  const url=base+"?clase="+encodeURIComponent(active.code)+"&qr="+encodeURIComponent(currentQrToken);
+  qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(url);
+  const s=document.getElementById("qrStatus");if(s)s.textContent="QR vigente. El siguiente se generará automáticamente.";
+  updateQrCountdown();
+ }catch(e){
+  console.error("QR dinámico:",e);
+  const s=document.getElementById("qrStatus");if(s)s.textContent="Error generando QR: "+(e.message||e);
+ }
+}
+function updateQrCountdown(){
+ const el=document.getElementById("qrCountdown");if(!el)return;
+ if(!currentQrExpiresAt){el.textContent="--";return;}
+ el.textContent=Math.max(0,Math.ceil((currentQrExpiresAt-Date.now())/1000));
+}
+function startQrRotation(){
+ stopQrRotation();
+ if(!active)return;
+ rotateDynamicQr();
+ qrRotateTimer=setInterval(rotateDynamicQr,30000);
+ qrCountdownTimer=setInterval(updateQrCountdown,500);
+}
+function renderActive(){
+ activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);
+ if(!active){stopQrRotation();return;}
+ aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");
+ aCodigo.textContent=active.code+" · QR obligatorio";
+ if(!qrRotateTimer)startQrRotation();
+}
+async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;stopQrRotation();active=null;await renderAll()}catch(e){alert(e.message)}}
+function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código de clase copiado. Para registrar asistencia el estudiante debe escanear el QR dinámico vigente.")}
 
 // Actualización automática del panel: refleja nuevas asistencias/estudiantes sin Ctrl+F5.
 let autoRefreshTimer=null;

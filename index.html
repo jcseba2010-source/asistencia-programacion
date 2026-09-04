@@ -209,21 +209,26 @@ async function loadPublicSettings(){
 }
 loadPublicSettings();
 
-const qs=new URLSearchParams(location.search), initial=qs.get("clase");
+const qs=new URLSearchParams(location.search), initial=qs.get("clase"), initialQr=qs.get("qr");
+let qrToken=initialQr||"";
 if(initial) document.getElementById("clase").value=initial;
 function msg(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",6000)}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
 async function loadSession(){
- const code=document.getElementById("clase").value.trim(); if(!code)return msg("err","Escribe el código de la clase.");
+ const code=document.getElementById("clase").value.trim();
+ if(!code)return msg("err","Escanea el QR dinámico proyectado por el docente.");
+ if(!qrToken)return msg("err","Por seguridad, el código escrito manualmente no permite registrar asistencia. Escanea el QR dinámico vigente del aula.");
  if(!client)return msg("err","El sistema aún no está conectado a Supabase.");
  try{
-  const {data,error}=await client.from("sessions").select("*").eq("code",code).eq("active",true).gt("expires_at",new Date().toISOString()).maybeSingle();
-  if(error)throw error;if(!data)throw new Error("No existe una clase activa con ese código o ya venció.");
-  session=data;
-  asig.textContent=session.subject;grupo.textContent=session.group;vigencia.textContent=new Date(session.expires_at).toLocaleString("es-CO");
+  const {data,error}=await client.rpc("validar_qr_dinamico",{p_code:code,p_token:qrToken});
+  if(error)throw error;
+  const r=Array.isArray(data)?data[0]:data;
+  if(!r||r.ok===false)throw new Error((r&&r.message)||"El QR ya venció. Escanea el QR actual proyectado por el docente.");
+  session={id:r.session_ref,subject:r.subject,group:r.group_name,expires_at:r.class_expires_at,code:code};
+  asig.textContent=session.subject;grupo.textContent=session.group;vigencia.textContent="QR válido por pocos segundos · Clase activa";
   classInfo.style.display="block";grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
-  status.textContent="Clase cargada correctamente.";
- }catch(e){msg("err",e.message||"No fue posible cargar la clase.")}
+  status.textContent="QR dinámico validado correctamente.";
+ }catch(e){session=null;msg("err",e.message||"El QR ya no es válido. Escanea el QR actual.");}
 }
 buscar.onclick=loadSession;
 form.onsubmit=async e=>{
@@ -245,7 +250,8 @@ form.onsubmit=async e=>{
     p_celular:record.celular,
     p_carrera:record.carrera,
     p_semestre:record.semestre,
-    p_correo:record.correo
+    p_correo:record.correo,
+    p_qr_token:qrToken
   });
   if(error)throw error;
   const r=Array.isArray(data)?data[0]:data;
