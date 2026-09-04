@@ -17,9 +17,26 @@ button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color
 .hidden{display:none!important}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:18px}
 @media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}.filters button{width:100%}}@media(max-width:600px){.stats{grid-template-columns:1fr}.top{display:block}}
 </style>
+
+<style id="fondo-unipamplona-docente">
+body{
+  background:
+    linear-gradient(rgba(244,247,251,.90),rgba(244,247,251,.90)),
+    url('assets/universidad_pamplona_entrada.png') center center / cover fixed no-repeat !important;
+}
+@media (max-width:700px){
+  body{
+    background:
+      linear-gradient(rgba(244,247,251,.92),rgba(244,247,251,.92)),
+      url('assets/universidad_pamplona_entrada.png') center top / cover fixed no-repeat !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
+<div style="text-align:center;background:#0b3768;color:white;padding:8px 12px;font-weight:700">Docente: Mg. JULIO CESAR CONTRERAS VARGAS</div>
 <main>
 <section id="loginCard" class="card login">
 <h2>Acceso docente</h2><p class="muted">Ingresa con la cuenta docente creada en Supabase Authentication.</p>
