@@ -36,7 +36,7 @@ footer{text-align:center;color:var(--muted);padding:30px}@media(max-width:800px)
 <button type="submit">REGISTRAR ASISTENCIA</button>
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
-<div class="notice"><b>Privacidad:</b> tus datos se usan para el control académico de asistencia. El sistema impide registrar dos veces la misma cédula o correo en una misma clase.</div>
+<div class="notice"><b>Privacidad:</b> tus datos se usan para el control académico de asistencia. Cada cédula pertenece a un solo grupo. El sistema impide cambiar de grupo y también evita duplicar la asistencia en una misma clase.</div>
 </main><footer>Programación I · Grupos I, V, A, B · Programación II · Grupo H</footer>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -64,10 +64,24 @@ form.onsubmit=async e=>{
  e.preventDefault(); if(!session)return msg("err","Primero carga la clase con su código.");
  const record={session_ref:session.id,name:nombre.value.trim(),cedula:cedula.value.trim(),celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:Number(semestre.value),correo:correo.value.trim().toLowerCase(),group:grupoForm.value};
  try{
-  const {error}=await client.from("attendance").insert(record);
-  if(error){if(error.code==="23505")throw new Error("La cédula o el correo ya registró asistencia en esta clase.");throw error;}
-  ok.innerHTML=`✓ Asistencia registrada correctamente.<br>${esc(record.name)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";e.target.reset();grupoForm.value=session.group;
- }catch(err){msg("err",err.message||"No fue posible registrar la asistencia.")}
+  const {data,error}=await client.rpc("registrar_asistencia",{
+    p_session_ref:record.session_ref,
+    p_name:record.name,
+    p_cedula:record.cedula,
+    p_celular:record.celular,
+    p_carrera:record.carrera,
+    p_semestre:record.semestre,
+    p_correo:record.correo
+  });
+  if(error)throw error;
+  const r=Array.isArray(data)?data[0]:data;
+  if(r && r.ok===false)throw new Error(r.message||"No fue posible registrar la asistencia.");
+  ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";e.target.reset();grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+ }catch(err){
+   let text=err.message||"No fue posible registrar la asistencia.";
+   if(text.includes("duplicate key")||text.includes("23505"))text="Este estudiante ya registró asistencia en esta clase.";
+   msg("err",text);
+ }
 };
 if(initial)loadSession();
 </script>

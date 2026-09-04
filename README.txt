@@ -22,3 +22,10 @@ IMPORTANTE:
 - No borres la tabla sessions.
 - No necesitas convertir attendance.session_id.
 - Los registros históricos quedan conservados.
+
+REGLA DE GRUPO UNICO
+--------------------
+Esta version crea student_registry y aplica la regla:
+UNA CEDULA = UN ESTUDIANTE = UN SOLO GRUPO.
+Si una cedula intenta registrarse en otro grupo, el sistema la rechaza.
+Primero ejecute supabase.sql completo y despues publique los archivos en GitHub Pages.
