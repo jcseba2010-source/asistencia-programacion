@@ -224,6 +224,16 @@ td{
 <input id="search" placeholder="Buscar nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar asistencias</button></div>
 <div id="attendanceGroups"></div></section>
 </section>
+
+<div class="card" id="zonaPeligroDB" style="margin-top:22px;border:1px solid #f0b4b4!important;">
+  <h2 style="color:#991b1b;margin-top:0">Zona de administración</h2>
+  <p style="color:#64748b">Elimina asistencias, estudiantes registrados y clases/grupos creados. Esta acción no se puede deshacer.</p>
+  <button id="btnLimpiarBaseTotal" type="button"
+    style="background:#b42318;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
+    LIMPIAR TODA LA BASE
+  </button>
+</div>
+
 </main>
 <div id="modal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="max-width:430px;width:100%">
 <h2>Iniciar nueva clase</h2><label>Asignatura</label><select id="subject"><option>Programación I</option><option>Programación II</option></select>
@@ -294,4 +304,39 @@ function exportStudentsCSV(){let a=filteredStudents();downloadCSV([["Estudiante"
 function exportCSV(){let a=filteredAttendance();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha/Hora"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.session.subject||subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"historial_asistencias.csv")}
 (async()=>{if(client){const {data:{session}}=await client.auth.getSession();if(session)showApp()}})();
 </script>
+
+<script id="limpieza-total-db">
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btnLimpiarBaseTotal');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const aviso1 = confirm(
+      'ATENCIÓN: se eliminarán TODAS las asistencias, TODOS los estudiantes registrados y TODAS las clases/grupos.\n\n¿Desea continuar?'
+    );
+    if (!aviso1) return;
+
+    const clave = prompt('Para confirmar escriba exactamente: LIMPIAR TODO');
+    if (clave !== 'LIMPIAR TODO') {
+      alert('Confirmación incorrecta. No se eliminó ningún dato.');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'LIMPIANDO...';
+    try {
+      const { data, error } = await client.rpc('limpiar_base_asistencia_total');
+      if (error) throw error;
+      alert(data || 'Base de datos limpiada correctamente.');
+      location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo limpiar la base: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'LIMPIAR TODA LA BASE';
+    }
+  });
+});
+</script>
+
 </body></html>

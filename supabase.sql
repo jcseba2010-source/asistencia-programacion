@@ -368,3 +368,33 @@ grant execute on function public.registrar_asistencia(bigint,text,text,text,text
 -- attendance puede tener muchas asistencias de la misma cedula,
 -- pero solo una por sesion, y nunca en un grupo diferente.
 -- ============================================================
+
+
+-- ============================================================
+-- LIMPIEZA TOTAL DEL SISTEMA (conserva tablas y estructura)
+-- Ejecutar este bloque en Supabase SQL Editor.
+-- Solo usuarios autenticados pueden invocarlo.
+-- ============================================================
+create or replace function public.limpiar_base_asistencia_total()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Acceso no autorizado';
+  end if;
+
+  -- Primero las tablas dependientes y luego las principales.
+  delete from public.attendance;
+  delete from public.student_registry;
+  delete from public.sessions;
+
+  return 'Base limpiada correctamente: asistencias, estudiantes y clases/grupos eliminados.';
+end;
+$$;
+
+revoke all on function public.limpiar_base_asistencia_total() from public;
+revoke all on function public.limpiar_base_asistencia_total() from anon;
+grant execute on function public.limpiar_base_asistencia_total() to authenticated;
