@@ -210,7 +210,7 @@ td{
 <div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button onclick="openNew()">+ Iniciar nueva clase</button><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
 <div class="grid"><section class="card"><h2>Clase activa</h2><div id="activeEmpty" class="muted">No hay una clase activa.</div><div id="activeClass" class="hidden">
-<p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">QR dinámico: cambia automáticamente cada 30 segundos.</p><p><b>Vigencia del QR:</b> <span id="qrCountdown">--</span> s</p><p id="qrStatus" class="muted">Generando token seguro...</p></div>
+<p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">QR dinámico: cambia automáticamente cada 60 segundos.</p><p><b>Vigencia del QR:</b> <span id="qrCountdown">--</span> s</p><p id="qrStatus" class="muted">Generando token seguro...</p></div>
 <button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
 <section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. Una misma cédula puede estar matriculada en varias asignaturas y grupos.</p><div class="filters">
@@ -246,6 +246,16 @@ td{
       <input id="adminGroupName" placeholder="Ej. A">
       <button type="button" onclick="createGroupAdmin()">CREAR GRUPO</button>
     </div>
+  </div>
+
+
+  <div style="margin-top:24px;padding:16px;border:1px solid #d7e2ef;border-radius:12px">
+    <h3 style="margin-top:0">Ubicación autorizada para asistencia</h3>
+    <p class="muted">Ubícate en el aula y guarda este punto. Los estudiantes deberán estar dentro del radio configurado para registrar asistencia.</p>
+    <label>Radio permitido (metros)</label>
+    <input id="attendanceRadius" type="number" min="20" max="1000" step="10" value="100">
+    <button type="button" onclick="guardarUbicacionAula()">USAR MI UBICACIÓN ACTUAL COMO PUNTO DEL AULA</button>
+    <p id="attendanceLocationStatus" class="muted">Ubicación del aula: sin verificar.</p>
   </div>
 
   <h3 style="margin-top:24px">Grupos creados</h3>
@@ -433,7 +443,7 @@ function startQrRotation(){
  stopQrRotation();
  if(!active)return;
  rotateDynamicQr();
- qrRotateTimer=setInterval(rotateDynamicQr,30000);
+ qrRotateTimer=setInterval(rotateDynamicQr,60000);
  qrCountdownTimer=setInterval(updateQrCountdown,500);
 }
 function renderActive(){
@@ -445,6 +455,39 @@ function renderActive(){
 }
 async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;stopQrRotation();active=null;await renderAll()}catch(e){alert(e.message)}}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código de clase copiado. Para registrar asistencia el estudiante debe escanear el QR dinámico vigente.")}
+
+
+async function guardarUbicacionAula(){
+ const status=document.getElementById("attendanceLocationStatus");
+ const radius=Math.max(20,Math.min(1000,Number(document.getElementById("attendanceRadius")?.value||100)));
+ if(!navigator.geolocation){
+   alert("Este navegador no permite obtener la ubicación.");
+   return;
+ }
+ if(status)status.textContent="Obteniendo ubicación del aula...";
+ navigator.geolocation.getCurrentPosition(async pos=>{
+   try{
+     const {data,error}=await client.rpc("admin_set_attendance_location",{
+       p_lat:pos.coords.latitude,
+       p_lng:pos.coords.longitude,
+       p_radius_m:radius
+     });
+     if(error)throw error;
+     if(status)status.textContent=`Ubicación guardada correctamente · radio ${radius} m · precisión aproximada ${Math.round(pos.coords.accuracy||0)} m`;
+     alert("Ubicación del aula guardada. Desde ahora la asistencia exige QR vigente + estar dentro del radio autorizado.");
+   }catch(e){
+     if(status)status.textContent="Error guardando ubicación: "+(e.message||e);
+     alert("No fue posible guardar la ubicación: "+(e.message||e));
+   }
+ },err=>{
+   let m="No fue posible obtener la ubicación.";
+   if(err.code===1)m="Permiso de ubicación rechazado. Actívalo en el navegador.";
+   if(err.code===2)m="Ubicación no disponible. Activa la ubicación/GPS.";
+   if(err.code===3)m="La ubicación tardó demasiado. Intenta nuevamente.";
+   if(status)status.textContent=m;
+   alert(m);
+ },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+}
 
 // Actualización automática del panel: refleja nuevas asistencias/estudiantes sin Ctrl+F5.
 let autoRefreshTimer=null;
@@ -464,10 +507,18 @@ async function fetchData(){
  const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);
  const en=await client.from("student_enrollments").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true}).limit(10000);
  const gg=await client.from("class_groups").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true});
- const cfgs=await client.from("app_settings").select("teacher_name").eq("id",1).maybeSingle();
+ const cfgs=await client.from("app_settings").select("teacher_name,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
  if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
  if(en.error)throw en.error;if(gg.error)throw gg.error;if(cfgs.error)throw cfgs.error;
  teacherName=cfgs.data?.teacher_name||"DOCENTE POR DEFINIR";
+ const locStatus=document.getElementById("attendanceLocationStatus");
+ const radiusInput=document.getElementById("attendanceRadius");
+ if(radiusInput && cfgs.data?.attendance_radius_m) radiusInput.value=cfgs.data.attendance_radius_m;
+ if(locStatus){
+   locStatus.textContent=(cfgs.data?.attendance_lat!=null && cfgs.data?.attendance_lng!=null)
+     ? `Ubicación del aula configurada · radio ${cfgs.data.attendance_radius_m||100} m`
+     : "Ubicación del aula: aún no configurada.";
+ }
  db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[]};
  active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null;
 }

@@ -1,0 +1,23 @@
+VERSIÓN QR DINÁMICO 60 s + UBICACIÓN
+
+ORDEN PARA PROBAR:
+1. En Supabase > SQL Editor ejecuta EJECUTAR_QR_60S_UBICACION.sql.
+2. Sube el contenido de este ZIP a GitHub Pages reemplazando los archivos anteriores.
+3. Abre docente.html e inicia sesión.
+4. En Administración > Ubicación autorizada para asistencia:
+   - estando en el aula, deja 100 m (o ajusta el radio),
+   - pulsa USAR MI UBICACIÓN ACTUAL COMO PUNTO DEL AULA,
+   - permite la ubicación en el navegador.
+5. Inicia una clase.
+6. El QR cambia cada 60 segundos.
+7. En el celular del estudiante escanea el QR, escribe la cédula y pulsa REGISTRAR ASISTENCIA.
+8. El celular pedirá permiso de ubicación.
+9. Supabase solo registra si:
+   - el QR sigue vigente,
+   - el estudiante está dentro del radio,
+   - y no había registrado ya esa misma clase.
+
+IMPORTANTE:
+- No borra estudiantes, asistencias, materias ni grupos.
+- Las coordenadas del estudiante NO se guardan en attendance; se usan solo para validar la distancia.
+- GitHub Pages usa HTTPS, requisito para la geolocalización del navegador.

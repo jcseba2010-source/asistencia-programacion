@@ -164,9 +164,15 @@ footer{
 <main>
 <section class="hero"><img class="hero-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><h1>Registro de asistencia</h1><p class="muted">Sistema de asistencia · Docente: <b id="studentTeacherName">cargando...</b></p></section>
 <div class="grid">
-<section class="card"><h2>Clase</h2><p id="status" class="muted">Escanea el QR o escribe el código de la clase.</p>
-<label>Código dinámico</label><input id="clase" placeholder="Ej. PRG1-I-030926-X7KQ">
-<button id="buscar">Cargar clase</button><div id="classInfo" style="display:none;margin-top:18px"><p><b>Asignatura:</b> <span id="asig"></span></p><p><b>Grupo:</b> <span id="grupo"></span></p><p><b>Vigencia:</b> <span id="vigencia"></span></p></div></section>
+<section class="card"><h2>Clase</h2>
+<p id="status" class="muted">Escanea el QR dinámico proyectado por el docente para cargar la clase.</p>
+<div class="notice"><b>Acceso seguro:</b> el QR dinámico vigente y la ubicación del celular son obligatorios. No se permite cargar la clase escribiendo un código manualmente.</div>
+<div id="classInfo" style="display:none;margin-top:18px">
+<p><b>Asignatura:</b> <span id="asig"></span></p>
+<p><b>Grupo:</b> <span id="grupo"></span></p>
+<p><b>Vigencia:</b> <span id="vigencia"></span></p>
+</div>
+</section>
 <section class="card"><h2>Registrar asistencia</h2><p class="muted">Si ya estás registrado, escribe únicamente tu cédula. Si es tu primera vez, el sistema te pedirá los demás datos.</p>
 <form id="form">
 <label>Número de cédula</label><input id="cedula" inputmode="numeric" required placeholder="Escribe tu cédula">
@@ -189,6 +195,26 @@ footer{
 const cfg=window.APP_CONFIG||{}; let session=null, client=null;
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 
+const el={
+  classInfo:document.getElementById("classInfo"),
+  asig:document.getElementById("asig"),
+  grupo:document.getElementById("grupo"),
+  vigencia:document.getElementById("vigencia"),
+  status:document.getElementById("status"),
+  grupoForm:document.getElementById("grupoForm"),
+  form:document.getElementById("form"),
+  cedula:document.getElementById("cedula"),
+  newStudentFields:document.getElementById("newStudentFields"),
+  nombre:document.getElementById("nombre"),
+  celular:document.getElementById("celular"),
+  carrera:document.getElementById("carrera"),
+  semestre:document.getElementById("semestre"),
+  correo:document.getElementById("correo"),
+  ok:document.getElementById("ok"),
+  err:document.getElementById("err"),
+  submitAttendance:document.getElementById("submitAttendance")
+};
+
 async function loadPublicSettings(){
  if(!client)return;
  try{
@@ -209,108 +235,126 @@ async function loadPublicSettings(){
 }
 loadPublicSettings();
 
-const qs=new URLSearchParams(location.search), initial=qs.get("clase"), initialQr=qs.get("qr");
-let qrToken=initialQr||"";
+const qs=new URLSearchParams(location.search);
+const initial=qs.get("clase");
+const qrToken=qs.get("qr")||"";
 let qrValidated=false;
-if(initial) document.getElementById("clase").value=initial;
 
-const submitAttendance=document.getElementById("submitAttendance");
+const submitAttendance=el.submitAttendance;
 function setAttendanceEnabled(enabled){
  qrValidated=!!enabled;
  submitAttendance.disabled=!enabled;
  submitAttendance.style.opacity=enabled?"1":"0.55";
  submitAttendance.style.cursor=enabled?"pointer":"not-allowed";
- submitAttendance.title=enabled?"QR dinámico validado":"Para registrar asistencia debes escanear el QR dinámico vigente";
+ submitAttendance.title=enabled?"QR dinámico validado":"Escanea el QR dinámico vigente";
 }
 setAttendanceEnabled(false);
 
-function msg(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",6000)}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\":"&quot;","'":"&#039;"}[c]))}
+function msg(id,t){
+ const e=document.getElementById(id);
+ if(!e){alert(t);return}
+ e.textContent=t;
+ e.style.display="block";
+ setTimeout(()=>e.style.display="none",8000);
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
 
-async function loadSession(){
- const code=(document.getElementById("clase").value||"").trim();
- const buscarBtn=document.getElementById("buscar");
+async function loadSessionFromQr(){
+ if(!initial || !qrToken){
+   el.classInfo.style.display="none";
+   setAttendanceEnabled(false);
+   el.status.textContent="Escanea el QR dinámico proyectado por el docente para cargar la clase.";
+   return msg("err","Debes escanear el QR dinámico vigente. No se aceptan códigos manuales.");
+ }
 
- if(!code)return msg("err","Escribe el código de la clase o escanea el QR dinámico.");
- if(!client)return msg("err","El sistema aún no está conectado a Supabase.");
-
- session=null;
- setAttendanceEnabled(false);
- classInfo.style.display="none";
- if(buscarBtn){buscarBtn.disabled=true;buscarBtn.textContent="Cargando..."}
+ if(!client){
+   return msg("err","El sistema aún no está conectado a Supabase.");
+ }
 
  try{
-  // 1) Si la URL viene desde el QR, validar el token dinámico.
-  if(qrToken){
-    const {data,error}=await client.rpc("validar_qr_dinamico",{p_code:code,p_token:qrToken});
-    if(error)throw error;
-    const r=Array.isArray(data)?data[0]:data;
-    if(!r||r.ok===false)throw new Error((r&&r.message)||"El QR ya venció. Escanea el QR actual.");
+   const {data,error}=await client.rpc("validar_qr_dinamico",{
+     p_code:initial,
+     p_token:qrToken
+   });
+   if(error)throw error;
 
-    session={
-      id:r.session_ref,
-      subject:r.subject,
-      group:r.group_name,
-      expires_at:r.class_expires_at,
-      code:code
-    };
+   const r=Array.isArray(data)?data[0]:data;
+   if(!r || r.ok===false){
+     throw new Error((r&&r.message)||"El QR no es válido o ya venció.");
+   }
 
-    asig.textContent=session.subject||"—";
-    grupo.textContent=session.group||"—";
-    vigencia.textContent="QR dinámico vigente · Registro habilitado";
-    classInfo.style.display="block";
-    grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
-    status.textContent="Clase cargada correctamente. Puedes registrar asistencia.";
-    setAttendanceEnabled(true);
-    return;
-  }
+   session={
+     id:r.session_ref,
+     subject:r.subject,
+     group:r.group_name,
+     expires_at:r.class_expires_at,
+     code:initial
+   };
 
-  // 2) Código manual: cargar materia y grupo mediante RPC pública.
-  const {data,error}=await client.rpc("cargar_clase_estudiante",{p_code:code});
-  if(error)throw error;
-
-  const r=Array.isArray(data)?data[0]:data;
-  if(!r||r.ok!==true)throw new Error((r&&r.message)||"No existe una clase activa con ese código.");
-
-  session={
-    id:r.session_ref,
-    subject:r.subject,
-    group:r.group_name,
-    expires_at:r.class_expires_at,
-    code:code
-  };
-
-  asig.textContent=session.subject||"—";
-  grupo.textContent=session.group||"—";
-  vigencia.textContent="Clase activa · Consulta por código";
-  classInfo.style.display="block";
-  grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
-  status.textContent="Clase cargada. Para registrar asistencia debes escanear el QR dinámico vigente.";
-  msg("err","Clase cargada correctamente. El código manual permite ver materia y grupo; para registrar asistencia debes escanear el QR.");
+   el.asig.textContent=session.subject||"—";
+   el.grupo.textContent=session.group||"—";
+   el.vigencia.textContent="QR dinámico vigente · Registro habilitado";
+   el.classInfo.style.display="block";
+   el.grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
+   el.status.textContent="Clase cargada correctamente mediante QR dinámico.";
+   setAttendanceEnabled(true);
  }catch(e){
-  console.error("Error cargando clase:",e);
-  session=null;
-  classInfo.style.display="none";
-  setAttendanceEnabled(false);
-  const detalle=(e&&e.message)?e.message:String(e||"");
-  msg("err","No fue posible cargar la clase: "+detalle);
- }finally{
-  if(buscarBtn){buscarBtn.disabled=false;buscarBtn.textContent="Cargar clase"}
+   console.error("Error validando QR:",e);
+   session=null;
+   el.classInfo.style.display="none";
+   setAttendanceEnabled(false);
+   msg("err","No fue posible cargar la clase: "+(e?.message||"QR inválido o vencido."));
  }
 }
-document.getElementById("buscar").onclick=loadSession;
-document.getElementById("form").onsubmit=async e=>{
- e.preventDefault(); if(!session)return msg("err","Primero carga la clase.");
+
+loadSessionFromQr();
+
+function obtenerUbicacionEstudiante(){
+ return new Promise((resolve,reject)=>{
+   if(!navigator.geolocation){
+     reject(new Error("Este dispositivo no permite obtener la ubicación."));
+     return;
+   }
+   navigator.geolocation.getCurrentPosition(
+     pos=>resolve({
+       lat:pos.coords.latitude,
+       lng:pos.coords.longitude,
+       accuracy:pos.coords.accuracy
+     }),
+     err=>{
+       let m="Debes permitir la ubicación para registrar asistencia.";
+       if(err.code===1)m="Permiso de ubicación rechazado. Actívalo en el navegador y vuelve a intentar.";
+       if(err.code===2)m="No fue posible determinar tu ubicación. Activa la ubicación/GPS y vuelve a intentar.";
+       if(err.code===3)m="La ubicación tardó demasiado. Vuelve a intentar cerca del aula.";
+       reject(new Error(m));
+     },
+     {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+   );
+ });
+}
+
+el.form.onsubmit=async e=>{
+ e.preventDefault(); if(!session||!qrValidated)return msg("err","Debes escanear el QR dinámico vigente antes de registrar asistencia.");
  if(!qrToken||!qrValidated)return msg("err","Para registrar asistencia debes escanear el QR dinámico vigente proyectado en el aula.");
- const ced=cedula.value.trim();
+ const ced=el.cedula.value.trim();
  if(!ced)return msg("err","Escribe tu número de cédula.");
- const fieldsVisible=newStudentFields.style.display!=="none";
+ const fieldsVisible=el.newStudentFields.style.display!=="none";
  if(fieldsVisible){
-   if(!nombre.value.trim()||!celular.value.trim()||!carrera.value.trim()||!semestre.value||!correo.value.trim()){
+   if(!el.nombre.value.trim()||!el.celular.value.trim()||!el.carrera.value.trim()||!el.semestre.value||!el.correo.value.trim()){
      return msg("err","Completa todos los datos de registro.");
    }
  }
- const record={session_ref:session.id,name:nombre.value.trim(),cedula:ced,celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:semestre.value?Number(semestre.value):null,correo:correo.value.trim().toLowerCase(),group:session.group};
+ const record={session_ref:session.id,name:el.nombre.value.trim(),cedula:ced,celular:el.celular.value.trim(),carrera:el.carrera.value.trim(),semestre:el.semestre.value?Number(el.semestre.value):null,correo:el.correo.value.trim().toLowerCase(),group:session.group};
+ let ubicacion;
+ try{
+   el.submitAttendance.disabled=true;
+   el.submitAttendance.textContent="VERIFICANDO UBICACIÓN...";
+   ubicacion=await obtenerUbicacionEstudiante();
+ }catch(geoErr){
+   setAttendanceEnabled(true);
+   el.submitAttendance.textContent="REGISTRAR ASISTENCIA";
+   return msg("err",geoErr.message);
+ }
  try{
   const {data,error}=await client.rpc("registrar_asistencia",{
     p_session_ref:record.session_ref,
@@ -320,25 +364,30 @@ document.getElementById("form").onsubmit=async e=>{
     p_carrera:record.carrera,
     p_semestre:record.semestre,
     p_correo:record.correo,
-    p_qr_token:qrToken
+    p_qr_token:qrToken,
+    p_lat:ubicacion.lat,
+    p_lng:ubicacion.lng
   });
   if(error)throw error;
   const r=Array.isArray(data)?data[0]:data;
   if(r && r.ok===false){
     if((r.message||"").startsWith("REGISTRO_NUEVO:")){
-      newStudentFields.style.display="block";
-      grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
-      nombre.required=celular.required=carrera.required=semestre.required=correo.required=true;
+      el.newStudentFields.style.display="block";
+      el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+      el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=true;
       return msg("err",(r.message||"").replace("REGISTRO_NUEVO:","").trim());
     }
     throw new Error(r.message||"No fue posible registrar la asistencia.");
   }
-  ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name||record.cedula)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";
-  e.target.reset();newStudentFields.style.display="none";nombre.required=celular.required=carrera.required=semestre.required=correo.required=false;grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  el.ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name||record.cedula)} · ${new Date().toLocaleTimeString("es-CO")}`;el.ok.style.display="block";
+  e.target.reset();el.newStudentFields.style.display="none";el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=false;el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
  }catch(err){
    let text=err.message||"No fue posible registrar la asistencia.";
    if(text.includes("duplicate key")||text.includes("23505"))text="Este estudiante ya registró asistencia en esta clase.";
    msg("err",text);
+ }finally{
+   setAttendanceEnabled(!!session&&qrValidated);
+   el.submitAttendance.textContent="REGISTRAR ASISTENCIA";
  }
 };
 if(initial)loadSession();

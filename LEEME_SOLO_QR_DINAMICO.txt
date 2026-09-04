@@ -1,0 +1,13 @@
+VERSIÓN SOLO QR DINÁMICO
+
+Funcionamiento:
+- El estudiante NO puede escribir un código manual.
+- La clase SOLO se carga al escanear el QR dinámico vigente.
+- El QR carga automáticamente asignatura y grupo.
+- Solo un QR válido habilita REGISTRAR ASISTENCIA.
+- Si el QR venció, debe escanear el nuevo QR proyectado por el docente.
+- No se borra ningún estudiante, asistencia, materia ni grupo.
+
+IMPORTANTE:
+Debe mantenerse en Supabase la función validar_qr_dinamico(text,text)
+corregida para evitar el error de session_ref ambiguo.

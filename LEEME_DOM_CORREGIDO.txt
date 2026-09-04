@@ -1,0 +1,16 @@
+CORRECCIÓN DEL BOTÓN CARGAR CLASE
+
+Se corrigió el JavaScript de la página del estudiante para no depender
+de variables automáticas creadas por los IDs HTML (classInfo, asig, grupo, etc.).
+
+Ese comportamiento puede fallar según el navegador y hacía que al pulsar
+"Cargar clase" no apareciera absolutamente nada.
+
+PASOS:
+1. Sube este ZIP a GitHub reemplazando los archivos actuales.
+2. Mantén ejecutado en Supabase el SQL EJECUTAR_PRIMERO_CARGAR_CLASE.sql.
+3. Espera 1-2 minutos.
+4. Haz Ctrl+F5.
+5. Prueba de nuevo Cargar clase.
+
+No borra ni modifica datos.
