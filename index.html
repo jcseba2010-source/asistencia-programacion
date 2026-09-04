@@ -228,39 +228,49 @@ function msg(id,t){const e=document.getElementById(id);e.textContent=t;e.style.d
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\\":"&quot;","'":"&#039;"}[c]))}
 
 async function loadSession(){
- const code=document.getElementById("clase").value.trim();
+ const code=(document.getElementById("clase").value||"").trim();
+ const buscarBtn=document.getElementById("buscar");
+
  if(!code)return msg("err","Escribe el código de la clase o escanea el QR dinámico.");
  if(!client)return msg("err","El sistema aún no está conectado a Supabase.");
 
  session=null;
  setAttendanceEnabled(false);
+ classInfo.style.display="none";
+ if(buscarBtn){buscarBtn.disabled=true;buscarBtn.textContent="Cargando..."}
 
  try{
-  // Si viene token del QR, se valida de forma segura en Supabase.
+  // 1) Si la URL viene desde el QR, validar el token dinámico.
   if(qrToken){
     const {data,error}=await client.rpc("validar_qr_dinamico",{p_code:code,p_token:qrToken});
     if(error)throw error;
     const r=Array.isArray(data)?data[0]:data;
-    if(!r||r.ok===false)throw new Error((r&&r.message)||"El QR ya venció. Escanea el QR actual proyectado por el docente.");
+    if(!r||r.ok===false)throw new Error((r&&r.message)||"El QR ya venció. Escanea el QR actual.");
 
-    session={id:r.session_ref,subject:r.subject,group:r.group_name,expires_at:r.class_expires_at,code:code};
-    asig.textContent=session.subject;
-    grupo.textContent=session.group;
+    session={
+      id:r.session_ref,
+      subject:r.subject,
+      group:r.group_name,
+      expires_at:r.class_expires_at,
+      code:code
+    };
+
+    asig.textContent=session.subject||"—";
+    grupo.textContent=session.group||"—";
     vigencia.textContent="QR dinámico vigente · Registro habilitado";
     classInfo.style.display="block";
-    grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
-    status.textContent="QR dinámico validado. Puedes registrar asistencia.";
+    grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
+    status.textContent="Clase cargada correctamente. Puedes registrar asistencia.";
     setAttendanceEnabled(true);
     return;
   }
 
-  // Código escrito manualmente: consulta pública de la clase mediante RPC.
-  // Permite mostrar asignatura y grupo, pero NO registrar asistencia.
-  const {data,error}=await client.rpc("consultar_clase_por_codigo",{p_code:code});
+  // 2) Código manual: cargar materia y grupo mediante RPC pública.
+  const {data,error}=await client.rpc("cargar_clase_estudiante",{p_code:code});
   if(error)throw error;
 
   const r=Array.isArray(data)?data[0]:data;
-  if(!r||r.ok===false)throw new Error((r&&r.message)||"No existe una clase activa con ese código.");
+  if(!r||r.ok!==true)throw new Error((r&&r.message)||"No existe una clase activa con ese código.");
 
   session={
     id:r.session_ref,
@@ -274,18 +284,22 @@ async function loadSession(){
   grupo.textContent=session.group||"—";
   vigencia.textContent="Clase activa · Consulta por código";
   classInfo.style.display="block";
-  grupoForm.innerHTML=`<option value="${session.group||""}">${session.group||"Sin grupo"}</option>`;
+  grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
   status.textContent="Clase cargada. Para registrar asistencia debes escanear el QR dinámico vigente.";
-  msg("err","Clase encontrada. Puedes consultar materia y grupo; para registrar asistencia escanea el QR dinámico vigente.");
+  msg("err","Clase cargada correctamente. El código manual permite ver materia y grupo; para registrar asistencia debes escanear el QR.");
  }catch(e){
+  console.error("Error cargando clase:",e);
   session=null;
   classInfo.style.display="none";
   setAttendanceEnabled(false);
-  msg("err",e.message||"No fue posible cargar la clase.");
+  const detalle=(e&&e.message)?e.message:String(e||"");
+  msg("err","No fue posible cargar la clase: "+detalle);
+ }finally{
+  if(buscarBtn){buscarBtn.disabled=false;buscarBtn.textContent="Cargar clase"}
  }
 }
-buscar.onclick=loadSession;
-form.onsubmit=async e=>{
+document.getElementById("buscar").onclick=loadSession;
+document.getElementById("form").onsubmit=async e=>{
  e.preventDefault(); if(!session)return msg("err","Primero carga la clase.");
  if(!qrToken||!qrValidated)return msg("err","Para registrar asistencia debes escanear el QR dinámico vigente proyectado en el aula.");
  const ced=cedula.value.trim();

@@ -1,0 +1,15 @@
+PASOS OBLIGATORIOS
+
+1. Supabase -> SQL Editor.
+2. Abre y ejecuta EJECUTAR_PRIMERO_CARGAR_CLASE.sql
+3. Debe salir: Success. No rows returned
+4. Después sube TODOS los archivos del ZIP a GitHub, reemplazando los actuales.
+5. Espera 1-2 minutos.
+6. En la página del estudiante pulsa Ctrl+F5.
+7. Escribe el código y pulsa Cargar clase.
+
+Resultado esperado:
+- Asignatura visible.
+- Grupo visible.
+- Código manual NO habilita asistencia.
+- QR dinámico sí habilita asistencia.
