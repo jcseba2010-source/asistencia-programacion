@@ -1,0 +1,22 @@
+CORRECCIÓN: CÓDIGO MANUAL + QR SEGURO
+
+- Si el estudiante escribe el código manualmente, el sistema SÍ carga:
+  * Asignatura
+  * Grupo
+  * Estado de la clase
+
+- Pero NO permite registrar asistencia con el código manual.
+
+- Para registrar asistencia debe escanear el QR dinámico vigente.
+
+- Se mantiene:
+  * QR rotativo
+  * validación en Supabase
+  * sistema multimateria
+  * una asistencia por estudiante y sesión
+
+No requiere borrar datos.
+
+IMPORTANTE:
+Si todavía no ejecutaste las correcciones SQL del QR dinámico de la versión anterior,
+debes ejecutarlas antes de probar el registro mediante QR.
