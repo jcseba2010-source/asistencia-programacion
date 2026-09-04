@@ -367,6 +367,7 @@ loginCard.classList.add("hidden");
 app.classList.remove("hidden");
 userBox.textContent=data.user.email;
 await renderAll();
+ startAutoRefresh();
 }
 async function logout(){await client.auth.signOut();app.classList.add("hidden");loginCard.classList.remove("hidden");userBox.textContent=""}
 async function startClass(){
@@ -402,6 +403,19 @@ function updateGroups(){
 function renderActive(){activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.href.replace("docente.html","index.html").split("?")[0]+"?clase="+active.code)}
 async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;active=null;await renderAll()}catch(e){alert(e.message)}}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código copiado: "+active.code)}
+
+// Actualización automática del panel: refleja nuevas asistencias/estudiantes sin Ctrl+F5.
+let autoRefreshTimer=null;
+function startAutoRefresh(){
+ if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+ autoRefreshTimer=setInterval(async()=>{
+   const appEl=document.getElementById("app");
+   if(appEl && !appEl.classList.contains("hidden")){
+     try{ await renderAll(); }catch(e){ console.error("Auto-refresh:",e); }
+   }
+ },5000);
+}
+
 async function fetchData(){
  const ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(100);
  const aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(5000);
