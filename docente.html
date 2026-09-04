@@ -225,15 +225,6 @@ td{
 <div id="attendanceGroups"></div></section>
 </section>
 
-<div class="card" id="zonaPeligroDB" style="margin-top:22px;border:1px solid #f0b4b4!important;">
-  <h2 style="color:#991b1b;margin-top:0">Zona de administración</h2>
-  <p style="color:#64748b">Elimina asistencias, estudiantes registrados y clases/grupos creados. Esta acción no se puede deshacer.</p>
-  <button id="btnLimpiarBaseTotal" type="button"
-    style="background:#b42318;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
-    LIMPIAR TODA LA BASE
-  </button>
-</div>
-
 </main>
 <div id="modal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="max-width:430px;width:100%">
 <h2>Iniciar nueva clase</h2><label>Asignatura</label><select id="subject"><option>Programación I</option><option>Programación II</option></select>
@@ -337,6 +328,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+</script>
+
+
+<div class="card" id="zonaPeligroDB" style="display:none;margin-top:24px;border:1px solid #f0b4b4!important;">
+  <h2 style="color:#991b1b;margin-top:0">Zona de administración</h2>
+  <p style="color:#64748b">
+    Elimina todas las asistencias, estudiantes registrados y clases/grupos almacenados.
+    Esta acción no se puede deshacer.
+  </p>
+  <button id="btnLimpiarBaseTotal" type="button"
+    style="background:#b42318;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
+    LIMPIAR TODA LA BASE
+  </button>
+</div>
+
+
+<script id="admin-dentro-panel">
+(function(){
+  function ubicarZonaAdmin(){
+    const zona = document.getElementById('zonaPeligroDB');
+    if(!zona) return;
+
+    const candidatos = [
+      document.getElementById('app'),
+      document.getElementById('panel'),
+      document.getElementById('panelDocente'),
+      document.getElementById('teacherPanel'),
+      document.getElementById('dashboard'),
+      document.querySelector('.app'),
+      document.querySelector('.panel-docente'),
+      document.querySelector('.dashboard')
+    ].filter(Boolean);
+
+    const panel = candidatos.find(el => {
+      const s = getComputedStyle(el);
+      return s.display !== 'none' && s.visibility !== 'hidden';
+    });
+
+    const login = document.getElementById('login') ||
+                  document.getElementById('loginBox') ||
+                  document.querySelector('.login') ||
+                  document.querySelector('.login-card');
+
+    const loginVisible = login && getComputedStyle(login).display !== 'none';
+
+    if(panel && !loginVisible){
+      if(zona.parentElement !== panel) panel.appendChild(zona);
+      zona.style.display = 'block';
+    }else{
+      zona.style.display = 'none';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ubicarZonaAdmin();
+    const obs = new MutationObserver(ubicarZonaAdmin);
+    obs.observe(document.body,{attributes:true,childList:true,subtree:true,attributeFilter:['style','class','hidden']});
+    setInterval(ubicarZonaAdmin,700);
+  });
+})();
 </script>
 
 </body></html>

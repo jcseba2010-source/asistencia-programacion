@@ -387,9 +387,9 @@ begin
   end if;
 
   -- Primero las tablas dependientes y luego las principales.
-  delete from public.attendance;
-  delete from public.student_registry;
-  delete from public.sessions;
+  delete from public.attendance where id is not null;
+  delete from public.student_registry where cedula is not null;
+  delete from public.sessions where id is not null;
 
   return 'Base limpiada correctamente: asistencias, estudiantes y clases/grupos eliminados.';
 end;
