@@ -225,17 +225,22 @@ td{
 <div id="attendanceGroups"></div></section>
 
 
+
 <div class="card" id="zonaPeligroDB" style="margin-top:24px;border:1px solid #f0b4b4!important;">
   <h2 style="color:#991b1b;margin-top:0">Zona de administración</h2>
   <p style="color:#64748b">
-    Elimina todas las asistencias, estudiantes registrados y clases/grupos almacenados.
-    Esta acción no se puede deshacer.
+    En modo multidocente cada profesor administra únicamente sus propios datos.
   </p>
-  <button id="btnLimpiarBaseTotal" type="button"
+  <button id="btnLimpiarMisDatos" type="button"
     style="background:#b42318;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
-    LIMPIAR TODA LA BASE
+    LIMPIAR MIS CLASES Y ASISTENCIAS
+  </button>
+  <button id="btnLimpiarBaseTotal" type="button"
+    style="display:none;background:#7f1d1d;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
+    ADMIN: LIMPIAR TODA LA PLATAFORMA
   </button>
 </div>
+
 
 </section>
 
@@ -247,25 +252,38 @@ td{
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const cfg=window.APP_CONFIG||{}, groups={"Programación I":["I","V","A","B"],"Programación II":["H"]};
-let client=null,db={sessions:[],records:[],students:[]},active=null;
+let client=null,db={sessions:[],records:[],students:[]},active=null,currentTeacher=null;
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 function showErr(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block"}function hideErr(id){document.getElementById(id).style.display="none"}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
 async function login(){hideErr("loginErr");if(!client)return showErr("loginErr","Falta configurar Supabase en config.js.");try{const {error}=await client.auth.signInWithPassword({email:email.value.trim(),password:password.value});if(error)throw error;password.value="" ;showApp()}catch(e){showErr("loginErr","Correo o contraseña incorrectos, o la cuenta no está disponible.")}}
 loginBtn.onclick=login;password.onkeydown=e=>{if(e.key==="Enter")login()};
-async function showApp(){const {data}=await client.auth.getUser();if(!data.user)return;loginCard.classList.add("hidden");app.classList.remove("hidden");userBox.textContent=data.user.email;await renderAll()}
+async function showApp(){
+ const {data}=await client.auth.getUser();
+ if(!data.user)return;
+ const prof=await client.rpc("ensure_teacher_profile");
+ if(prof.error)throw prof.error;
+ currentTeacher=Array.isArray(prof.data)?prof.data[0]:prof.data;
+ if(currentTeacher?.is_admin){
+   await client.rpc("reclamar_datos_anteriores");
+ }
+ loginCard.classList.add("hidden");
+ app.classList.remove("hidden");
+ userBox.textContent=(currentTeacher?.display_name||data.user.email)+(currentTeacher?.is_admin?" · Administrador":"");
+ await renderAll()
+}
 async function logout(){await client.auth.signOut();app.classList.add("hidden");loginCard.classList.remove("hidden");userBox.textContent=""}
 async function startClass(){
 hideErr("modalErr");
 if(!client)return showErr("modalErr","Supabase no está configurado.");
 const {data:{session}}=await client.auth.getSession();
 if(!session)return showErr("modalErr","Tu sesión docente no está activa. Cierra sesión, vuelve a ingresar y prueba nuevamente.");
-const {data:existingActive,error:activeError}=await client.from("sessions").select("id,subject,group,starts_at,expires_at").eq("active",true).gt("expires_at",new Date().toISOString()).limit(1);
+const {data:existingActive,error:activeError}=await client.from("sessions").select("id,subject,group,starts_at,expires_at").eq("teacher_id",currentTeacher.id).eq("active",true).gt("expires_at",new Date().toISOString()).limit(1);
 if(activeError)return showErr("modalErr","No se pudo verificar si existe una clase activa: "+activeError.message);
 if(existingActive&&existingActive.length){return showErr("modalErr",`Ya existe una clase activa: ${existingActive[0].subject} · Grupo ${existingActive[0].group}. Primero debes finalizarla antes de iniciar otra.`)}
 const d=new Date(),s=subject.value,g=group.value,mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
 try{
-const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
+const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true,teacher_id:currentTeacher.id};
 const {data,error}=await client.from("sessions").insert(payload).select().single();
 if(error){
   console.error("Supabase sessions.insert:",error);
@@ -281,7 +299,7 @@ function openNew(){modal.classList.remove("hidden");updateGroups()}function clos
 function renderActive(){activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.href.replace("docente.html","index.html").split("?")[0]+"?clase="+active.code)}
 async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;active=null;await renderAll()}catch(e){alert(e.message)}}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código copiado: "+active.code)}
-async function fetchData(){const ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(100);const aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(5000);const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;db={sessions:ss.data||[],records:aa.data||[],students:st.data||[]};active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
+async function fetchData(){const ss=await client.from("sessions").select("*").eq("teacher_id",currentTeacher.id).order("starts_at",{ascending:false}).limit(100);const aa=await client.from("attendance").select("*").eq("teacher_id",currentTeacher.id).order("created_at",{ascending:false}).limit(5000);const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;db={sessions:ss.data||[],records:aa.data||[],students:st.data||[]};active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
 async function renderAll(){try{await fetchData();renderActive();renderSessions();renderStudents();renderTable();stats()}catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}}
 function renderSessions(){sessions.innerHTML=db.sessions.slice(0,10).map(s=>`<div class="session"><strong>${esc(s.subject)} · Grupo ${esc(s.group)} ${s.active&&new Date(s.expires_at)>new Date()?'<span class="pill">ACTIVA</span>':''}</strong><br><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${esc(s.code)}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
 function subjectForGroup(g){return g==="H"?"Programación II":"Programación I"}
@@ -310,39 +328,47 @@ function exportCSV(){let a=filteredAttendance();downloadCSV([["Estudiante","Céd
 (async()=>{if(client){const {data:{session}}=await client.auth.getSession();if(session)showApp()}})();
 </script>
 
-<script id="limpieza-total-db">
+
+
+
+
+<script id="limpieza-multidocente-db">
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('btnLimpiarBaseTotal');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    const aviso1 = confirm(
-      'ATENCIÓN: se eliminarán TODAS las asistencias, TODOS los estudiantes registrados y TODAS las clases/grupos.\n\n¿Desea continuar?'
-    );
-    if (!aviso1) return;
+  const mine = document.getElementById('btnLimpiarMisDatos');
+  const all = document.getElementById('btnLimpiarBaseTotal');
 
-    const clave = prompt('Para confirmar escriba exactamente: LIMPIAR TODO');
-    if (clave !== 'LIMPIAR TODO') {
-      alert('Confirmación incorrecta. No se eliminó ningún dato.');
-      return;
+  const refreshAdminButton = setInterval(()=>{
+    if(all && currentTeacher){
+      all.style.display=currentTeacher.is_admin?'inline-block':'none';
+      clearInterval(refreshAdminButton);
     }
+  },300);
 
-    btn.disabled = true;
-    btn.textContent = 'LIMPIANDO...';
-    try {
-      const { data, error } = await client.rpc('limpiar_base_asistencia_total');
-      if (error) throw error;
-      alert(data || 'Base de datos limpiada correctamente.');
-      location.reload();
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo limpiar la base: ' + (e.message || e));
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'LIMPIAR TODA LA BASE';
-    }
+  if(mine) mine.addEventListener('click', async () => {
+    if(!confirm('Se eliminarán únicamente TUS clases, matrículas y asistencias. ¿Deseas continuar?')) return;
+    const key=prompt('Escribe exactamente: LIMPIAR MIS DATOS');
+    if(key!=='LIMPIAR MIS DATOS') return alert('Confirmación incorrecta. No se eliminó nada.');
+    try{
+      const {data,error}=await client.rpc('limpiar_mis_datos_asistencia');
+      if(error) throw error;
+      alert(data||'Tus datos fueron eliminados.');
+      await renderAll();
+    }catch(e){ alert('No se pudo limpiar: '+(e.message||e)); }
+  });
+
+  if(all) all.addEventListener('click', async () => {
+    if(!currentTeacher?.is_admin) return alert('Solo el administrador general puede realizar esta acción.');
+    if(!confirm('ATENCIÓN: se eliminarán los datos de TODOS los profesores. ¿Deseas continuar?')) return;
+    const key=prompt('Escribe exactamente: LIMPIAR TODO');
+    if(key!=='LIMPIAR TODO') return alert('Confirmación incorrecta. No se eliminó nada.');
+    try{
+      const {data,error}=await client.rpc('limpiar_base_asistencia_total');
+      if(error) throw error;
+      alert(data||'Plataforma limpiada.');
+      await renderAll();
+    }catch(e){ alert('No se pudo limpiar la plataforma: '+(e.message||e)); }
   });
 });
 </script>
-
 
 </body></html>
