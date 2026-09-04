@@ -1,0 +1,14 @@
+VERSION MULTIMATERIA
+
+Esta versión permite que una misma cédula curse varias materias/grupos con el mismo profesor.
+
+IMPORTANTE:
+1. Primero ejecuta ACTUALIZAR_MULTIMATERIA.sql en Supabase > SQL Editor.
+2. Debe aparecer: Success. No rows returned.
+3. Después sube index.html, docente.html, config.js y assets a GitHub Pages.
+4. Haz Ctrl + F5 en el panel docente y en la página del estudiante.
+
+La actualización NO borra estudiantes ni asistencias existentes.
+La tabla student_registry conserva una sola ficha personal por cédula.
+La nueva tabla student_enrollments guarda todas las materias/grupos del estudiante.
+Al asistir por primera vez a otra materia/grupo, el sistema agrega esa matrícula automáticamente.

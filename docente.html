@@ -213,12 +213,12 @@ td{
 <p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">Proyecta este QR para que los estudiantes registren asistencia.</p></div>
 <button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
-<section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. La cédula determina su grupo permanente.</p><div class="filters">
+<section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. Una misma cédula puede estar matriculada en varias asignaturas y grupos.</p><div class="filters">
 <select id="studentGroup" onchange="renderStudents()"><option value="">Todos los grupos</option></select>
 <select id="studentSubject" onchange="renderStudents()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <input id="studentSearch" placeholder="Buscar nombre, cédula o correo..." oninput="renderStudents()"><button onclick="exportStudentsCSV()">Exportar estudiantes</button></div>
 <div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Registrado</th><th>Acción</th></tr></thead><tbody id="studentsBody"></tbody></table></div></section>
-<section class="card"><h2>Historial de asistencias por grupos</h2><p class="muted">Las asistencias se muestran separadas por grupo. El mismo estudiante puede aparecer varias veces dentro de su grupo, una por cada clase asistida.</p><div class="filters">
+<section class="card"><h2>Historial de asistencias por grupos</h2><p class="muted">Las asistencias se muestran por asignatura y grupo. Un mismo estudiante puede asistir a varias materias con el mismo profesor.</p><div class="filters">
 <select id="filterSubject" onchange="renderTable()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option></select>
 <input id="search" placeholder="Buscar nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar asistencias</button></div>
@@ -420,12 +420,13 @@ async function fetchData(){
  const ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(100);
  const aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(5000);
  const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);
+ const en=await client.from("student_enrollments").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true}).limit(10000);
  const gg=await client.from("class_groups").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true});
  const cfgs=await client.from("app_settings").select("teacher_name").eq("id",1).maybeSingle();
  if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
- if(gg.error)throw gg.error;if(cfgs.error)throw cfgs.error;
+ if(en.error)throw en.error;if(gg.error)throw gg.error;if(cfgs.error)throw cfgs.error;
  teacherName=cfgs.data?.teacher_name||"DOCENTE POR DEFINIR";
- db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],groups:gg.data||[]};
+ db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[]};
  active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null;
 }
 async function renderAll(){
@@ -452,14 +453,30 @@ function subjectForGroup(g){
  const s=db.sessions.find(v=>v.group===g);
  return s?.subject||"";
 }
+function enrollmentsForStudent(x){
+ const rows=(db.enrollments||[]).filter(e=>String(e.cedula)===String(x.cedula));
+ if(rows.length)return rows;
+ // Compatibilidad con registros antiguos mientras se ejecuta/migra la estructura.
+ return x.group ? [{cedula:x.cedula,subject:subjectForGroup(x.group),group_name:x.group}] : [];
+}
 function filteredStudents(){
  let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase();
- return db.students.filter(x=>(!g||x.group===g)&&(!s||subjectForGroup(x.group)===s)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));
+ return db.students
+   .map(x=>({...x,_enrollments:enrollmentsForStudent(x)}))
+   .filter(x=>{
+      const enrollmentOK=(!g&&!s)||x._enrollments.some(e=>(!g||e.group_name===g)&&(!s||e.subject===s));
+      const searchOK=!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q));
+      return enrollmentOK&&searchOK;
+   });
 }
 function renderStudents(){
   const a=filteredStudents();
   studentsBody.innerHTML = a.length
-    ? a.map((x,i)=>`<tr>
+    ? a.map((x,i)=>{
+        const ens=x._enrollments||[];
+        const subjects=[...new Set(ens.map(e=>e.subject).filter(Boolean))].join(" · ");
+        const groups=[...new Set(ens.map(e=>e.group_name).filter(Boolean))].join(" · ");
+        return `<tr>
         <td>${i+1}</td>
         <td>${esc(x.name)}</td>
         <td>${esc(x.cedula)}</td>
@@ -467,11 +484,12 @@ function renderStudents(){
         <td>${esc(x.carrera)}</td>
         <td>${esc(x.semestre)}</td>
         <td>${esc(x.correo)}</td>
-        <td>${esc(subjectForGroup(x.group))}</td>
-        <td>${esc(x.group)}</td>
+        <td>${esc(subjects)}</td>
+        <td>${esc(groups)}</td>
         <td>${new Date(x.created_at).toLocaleString("es-CO")}</td>
         <td><button class="danger" data-cedula="${esc(x.cedula)}" onclick="deleteStudentAdmin(this.dataset.cedula)">Borrar</button></td>
-      </tr>`).join("")
+      </tr>`;
+      }).join("")
     : '<tr><td colspan="11" class="muted">No hay estudiantes registrados.</td></tr>';
 }
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
@@ -492,7 +510,19 @@ function renderTable(){
 }
 function stats(){totalStudents.textContent=db.students.length;let today=new Date().toLocaleDateString("es-CO");presentes.textContent=db.records.filter(x=>new Date(x.created_at).toLocaleDateString("es-CO")===today).length;activas.textContent=db.sessions.filter(x=>x.active&&new Date(x.expires_at)>new Date()).length;totalReg.textContent=db.records.length}
 function downloadCSV(rows,name){let csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");let blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),aEl=document.createElement("a");aEl.href=url;aEl.download=name;aEl.click();URL.revokeObjectURL(url)}
-function exportStudentsCSV(){let a=filteredStudents();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha de registro"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"estudiantes_registrados.csv")}
+function exportStudentsCSV(){
+ let a=filteredStudents();
+ downloadCSV([
+   ["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignaturas","Grupos","Fecha de registro"],
+   ...a.map(x=>{
+     const ens=x._enrollments||enrollmentsForStudent(x);
+     return [x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,
+       [...new Set(ens.map(e=>e.subject).filter(Boolean))].join(" | "),
+       [...new Set(ens.map(e=>e.group_name).filter(Boolean))].join(" | "),
+       new Date(x.created_at).toLocaleString("es-CO")];
+   })
+ ],"estudiantes_registrados.csv")
+}
 function exportCSV(){let a=filteredAttendance();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha/Hora"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.session.subject||subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"historial_asistencias.csv")}
 
 function refreshDynamicGroups(){
