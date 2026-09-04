@@ -1,0 +1,16 @@
+VERSIÓN FINAL: QR 60 SEGUNDOS + 5 MINUTOS PARA REGISTRO + UBICACIÓN
+
+1. Ejecuta en Supabase el archivo:
+   EJECUTAR_QR_60S_PERMISO_5MIN.sql
+
+2. Después sube a GitHub Pages los archivos del ZIP, reemplazando los anteriores.
+
+FUNCIONAMIENTO:
+- El QR cambia cada 60 segundos.
+- El estudiante debe escanear un QR vigente.
+- Al escanearlo correctamente recibe un permiso temporal de 5 minutos.
+- Durante esos 5 minutos puede completar sus datos.
+- Al registrar asistencia se valida también su ubicación.
+- El permiso se consume al registrar correctamente.
+- Una cédula solo registra una vez por clase.
+- No se borran estudiantes, asistencias, materias ni grupos.

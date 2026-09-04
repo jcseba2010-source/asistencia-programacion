@@ -283,17 +283,29 @@ async function loadSessionFromQr(){
      throw new Error((r&&r.message)||"El QR no es válido o ya venció.");
    }
 
+   // Cambiar el QR válido por un permiso temporal de 5 minutos.
+   const permitResp=await client.rpc("crear_permiso_asistencia",{
+     p_code:initial,
+     p_qr_token:qrToken
+   });
+   if(permitResp.error)throw permitResp.error;
+   const permit=Array.isArray(permitResp.data)?permitResp.data[0]:permitResp.data;
+   if(!permit || permit.ok===false || !permit.permit_token){
+     throw new Error((permit&&permit.message)||"No fue posible crear el permiso temporal de asistencia.");
+   }
+
    session={
      id:r.session_ref,
      subject:r.subject,
      group:r.group_name,
      expires_at:r.class_expires_at,
-     code:initial
+     code:initial,
+     permit_token:permit.permit_token
    };
 
    el.asig.textContent=session.subject||"—";
    el.grupo.textContent=session.group||"—";
-   el.vigencia.textContent="QR dinámico vigente · Registro habilitado";
+   el.vigencia.textContent="QR validado · Tienes 5 minutos para completar el registro";
    el.classInfo.style.display="block";
    el.grupoForm.innerHTML=`<option value="${esc(session.group||"")}">${esc(session.group||"Sin grupo")}</option>`;
    el.status.textContent="Clase cargada correctamente mediante QR dinámico.";
@@ -364,7 +376,7 @@ el.form.onsubmit=async e=>{
     p_carrera:record.carrera,
     p_semestre:record.semestre,
     p_correo:record.correo,
-    p_qr_token:qrToken,
+    p_permit_token:session.permit_token,
     p_lat:ubicacion.lat,
     p_lng:ubicacion.lng
   });
