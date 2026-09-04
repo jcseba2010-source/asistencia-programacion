@@ -39,11 +39,11 @@ button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color
 <select id="studentSubject" onchange="renderStudents()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <input id="studentSearch" placeholder="Buscar nombre, cédula o correo..." oninput="renderStudents()"><button onclick="exportStudentsCSV()">Exportar estudiantes</button></div>
 <div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Registrado</th></tr></thead><tbody id="studentsBody"></tbody></table></div></section>
-<section class="card"><h2>Historial de asistencias</h2><p class="muted">Aquí el mismo estudiante puede aparecer varias veces: una fila por cada clase en la que registró asistencia.</p><div class="filters">
+<section class="card"><h2>Historial de asistencias por grupos</h2><p class="muted">Las asistencias se muestran separadas por grupo. El mismo estudiante puede aparecer varias veces dentro de su grupo, una por cada clase asistida.</p><div class="filters">
 <select id="filterSubject" onchange="renderTable()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option><option>I</option><option>V</option><option>A</option><option>B</option><option>H</option></select>
 <input id="search" placeholder="Buscar nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar asistencias</button></div>
-<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Fecha/hora</th></tr></thead><tbody id="tbody"></tbody></table></div></section>
+<div id="attendanceGroups"></div></section>
 </section>
 </main>
 <div id="modal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="max-width:430px;width:100%">
@@ -94,7 +94,21 @@ function subjectForGroup(g){return g==="H"?"Programación II":"Programación I"}
 function filteredStudents(){let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase();return db.students.filter(x=>(!g||x.group===g)&&(!s||subjectForGroup(x.group)===s)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderStudents(){let a=filteredStudents();studentsBody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="10" class="muted">No hay estudiantes registrados.</td></tr>'}
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
-function renderTable(){let a=filteredAttendance();tbody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(x.session.subject||subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="10" class="muted">No hay asistencias registradas.</td></tr>'}
+function renderTable(){
+ let a=filteredAttendance(), order=["I","V","A","B","H"], html="";
+ const selected=filterGroup.value;
+ const visible=selected?[selected]:order;
+ visible.forEach(g=>{
+   const rows=a.filter(x=>x.group===g);
+   const subject=subjectForGroup(g);
+   html+=`<div style="margin-top:22px"><h3 style="margin:0 0 10px">${esc(subject)} · Grupo ${esc(g)} <span class="pill">${rows.length} registro${rows.length===1?'':'s'}</span></h3>`;
+   if(!rows.length){html+=`<div class="muted" style="padding:12px 0">No hay asistencias registradas para este grupo.</div></div>`;return;}
+   html+=`<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Fecha/hora</th></tr></thead><tbody>`;
+   html+=rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("");
+   html+=`</tbody></table></div></div>`;
+ });
+ attendanceGroups.innerHTML=html||'<div class="muted">No hay asistencias registradas.</div>';
+}
 function stats(){totalStudents.textContent=db.students.length;let today=new Date().toLocaleDateString("es-CO");presentes.textContent=db.records.filter(x=>new Date(x.created_at).toLocaleDateString("es-CO")===today).length;activas.textContent=db.sessions.filter(x=>x.active&&new Date(x.expires_at)>new Date()).length;totalReg.textContent=db.records.length}
 function downloadCSV(rows,name){let csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");let blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),aEl=document.createElement("a");aEl.href=url;aEl.download=name;aEl.click();URL.revokeObjectURL(url)}
 function exportStudentsCSV(){let a=filteredStudents();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha de registro"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"estudiantes_registrados.csv")}

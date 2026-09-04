@@ -323,6 +323,18 @@ begin
     return;
   end if;
 
+  -- Si la cédula no existe todavía, solicitar el registro completo una sola vez.
+  if btrim(coalesce(p_name,'')) = ''
+     or btrim(coalesce(p_celular,'')) = ''
+     or btrim(coalesce(p_carrera,'')) = ''
+     or p_semestre is null
+     or v_correo = '' then
+    return query select false,
+      'REGISTRO_NUEVO: Esta cédula no está registrada. Completa tus datos una sola vez para continuar.',
+      null::text,v_session."group";
+    return;
+  end if;
+
   if exists (
     select 1 from public.student_registry
     where correo is not null and correo <> ''

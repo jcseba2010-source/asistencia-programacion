@@ -24,16 +24,19 @@ footer{text-align:center;color:var(--muted);padding:30px}@media(max-width:800px)
 <section class="card"><h2>Clase</h2><p id="status" class="muted">Escanea el QR o escribe el código de la clase.</p>
 <label>Código dinámico</label><input id="clase" placeholder="Ej. PRG1-I-030926-X7KQ">
 <button id="buscar">Cargar clase</button><div id="classInfo" style="display:none;margin-top:18px"><p><b>Asignatura:</b> <span id="asig"></span></p><p><b>Grupo:</b> <span id="grupo"></span></p><p><b>Vigencia:</b> <span id="vigencia"></span></p></div></section>
-<section class="card"><h2>Datos del estudiante</h2><p class="muted">Diligencia tus datos para registrar la asistencia.</p>
+<section class="card"><h2>Registrar asistencia</h2><p class="muted">Si ya estás registrado, escribe únicamente tu cédula. Si es tu primera vez, el sistema te pedirá los demás datos.</p>
 <form id="form">
-<label>Nombre completo</label><input id="nombre" required>
-<label>Número de cédula</label><input id="cedula" inputmode="numeric" required>
-<label>Número de celular</label><input id="celular" inputmode="tel" required>
-<label>Carrera</label><input id="carrera" required>
-<label>Semestre</label><select id="semestre" required><option value="">Selecciona</option><script>for(let i=1;i<=10;i++)document.write(`<option>${i}</option>`)</script></select>
-<label>Correo electrónico</label><input id="correo" type="email" required>
-<label>Grupo</label><select id="grupoForm" required><option value="">Selecciona la clase primero</option></select>
-<button type="submit">REGISTRAR ASISTENCIA</button>
+<label>Número de cédula</label><input id="cedula" inputmode="numeric" required placeholder="Escribe tu cédula">
+<div id="newStudentFields" style="display:none">
+<div class="notice"><b>Primera vez:</b> completa estos datos una sola vez. En las próximas clases solo necesitarás tu cédula.</div>
+<label>Nombre completo</label><input id="nombre">
+<label>Número de celular</label><input id="celular" inputmode="tel">
+<label>Carrera</label><input id="carrera">
+<label>Semestre</label><select id="semestre"><option value="">Selecciona</option><script>for(let i=1;i<=10;i++)document.write(`<option>${i}</option>`)</script></select>
+<label>Correo electrónico</label><input id="correo" type="email">
+<label>Grupo</label><select id="grupoForm"><option value="">Selecciona la clase primero</option></select>
+</div>
+<button type="submit" id="submitAttendance">REGISTRAR ASISTENCIA</button>
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
 <div class="notice"><b>Privacidad:</b> tus datos se usan para el control académico de asistencia. Cada cédula pertenece a un solo grupo. El sistema impide cambiar de grupo y también evita duplicar la asistencia en una misma clase.</div>
@@ -62,7 +65,15 @@ async function loadSession(){
 buscar.onclick=loadSession;
 form.onsubmit=async e=>{
  e.preventDefault(); if(!session)return msg("err","Primero carga la clase con su código.");
- const record={session_ref:session.id,name:nombre.value.trim(),cedula:cedula.value.trim(),celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:Number(semestre.value),correo:correo.value.trim().toLowerCase(),group:grupoForm.value};
+ const ced=cedula.value.trim();
+ if(!ced)return msg("err","Escribe tu número de cédula.");
+ const fieldsVisible=newStudentFields.style.display!=="none";
+ if(fieldsVisible){
+   if(!nombre.value.trim()||!celular.value.trim()||!carrera.value.trim()||!semestre.value||!correo.value.trim()){
+     return msg("err","Completa todos los datos de registro.");
+   }
+ }
+ const record={session_ref:session.id,name:nombre.value.trim(),cedula:ced,celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:semestre.value?Number(semestre.value):null,correo:correo.value.trim().toLowerCase(),group:session.group};
  try{
   const {data,error}=await client.rpc("registrar_asistencia",{
     p_session_ref:record.session_ref,
@@ -75,8 +86,17 @@ form.onsubmit=async e=>{
   });
   if(error)throw error;
   const r=Array.isArray(data)?data[0]:data;
-  if(r && r.ok===false)throw new Error(r.message||"No fue posible registrar la asistencia.");
-  ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";e.target.reset();grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  if(r && r.ok===false){
+    if((r.message||"").startsWith("REGISTRO_NUEVO:")){
+      newStudentFields.style.display="block";
+      grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+      nombre.required=celular.required=carrera.required=semestre.required=correo.required=true;
+      return msg("err",(r.message||"").replace("REGISTRO_NUEVO:","").trim());
+    }
+    throw new Error(r.message||"No fue posible registrar la asistencia.");
+  }
+  ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name||record.cedula)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";
+  e.target.reset();newStudentFields.style.display="none";nombre.required=celular.required=carrera.required=semestre.required=correo.required=false;grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
  }catch(err){
    let text=err.message||"No fue posible registrar la asistencia.";
    if(text.includes("duplicate key")||text.includes("23505"))text="Este estudiante ya registró asistencia en esta clase.";
