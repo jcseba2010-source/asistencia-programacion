@@ -1,50 +1,90 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Panel Docente | Asistencia</title>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel docente | Asistencia</title>
 <style>
-:root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--text:#14213d;--muted:#64748b;--line:#e5e7eb;--ok:#12833b}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}header{height:74px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 28px}.brand{font-weight:800;font-size:19px}.brand small{display:block;font-weight:400;font-size:12px;opacity:.8;margin-top:3px}.layout{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 74px)}aside{background:var(--navy);color:#fff;padding:20px 14px}.nav{padding:13px 14px;border-radius:9px;margin-bottom:7px;cursor:pointer}.nav:hover{background:#123e8d}main{padding:28px;max-width:1500px;width:100%;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:22px}.top h1{margin:0;font-size:29px}.muted{color:var(--muted)}button,.btn{border:0;border-radius:9px;padding:12px 16px;font-weight:700;cursor:pointer;background:var(--blue);color:#fff}.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.stat,.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 5px 18px #14213d0d}.stat b{display:block;font-size:28px;margin-top:8px}.stat span{color:var(--muted);font-size:13px}.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-top:18px}.card h2{margin:0 0 18px;font-size:19px}.filters{display:grid;grid-template-columns:1.2fr .8fr .8fr auto;gap:10px;margin-bottom:15px}select,input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff}label{display:block;font-weight:700;font-size:13px;margin:10px 0 5px}table{width:100%;border-collapse:collapse}th,td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}th{background:#f8fafc}.pill{display:inline-block;padding:5px 9px;border-radius:15px;font-size:12px;font-weight:700;background:#e7f8ed;color:#12833b}.session{border:1px solid var(--line);border-radius:12px;padding:15px;margin-bottom:10px}.session strong{display:block;margin-bottom:5px}.bigcode{text-align:center;background:#f2f6ff;padding:15px;border-radius:10px;font-size:24px;font-weight:800;letter-spacing:2px;margin:15px 0}.qrbox{text-align:center}.qrbox img{width:240px;max-width:100%}.modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:20px}.modal>div{background:#fff;border-radius:15px;padding:25px;max-width:520px;width:100%}.toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:14px 18px;border-radius:9px;display:none}
-@media(max-width:950px){.layout{grid-template-columns:1fr}aside{display:none}.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}}@media(max-width:600px){main{padding:16px}.stats{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr}.top{display:block}.top .btn{margin-top:12px}table{display:block;overflow:auto;white-space:nowrap}}
-</style></head><body>
-<header><div class="brand">UNIVERSIDAD DE PAMPLONA<small>Sistema de Control Virtual de Asistencia</small></div><div>👤 <b>Julio Cesar Contreras</b> · Docente</div></header>
-<div class="layout"><aside><div class="nav" onclick="scrollTo(0,0)">🏠 Inicio</div><div class="nav" onclick="document.getElementById('nueva').scrollIntoView()">➕ Nueva clase</div><div class="nav" onclick="document.getElementById('asistencias').scrollIntoView()">👥 Asistencias</div><div class="nav" onclick="document.getElementById('reportes').scrollIntoView()">📊 Reportes</div></aside>
-<main><div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><button class="btn" onclick="openNew()">+ Iniciar nueva clase</button></div>
+:root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--text:#14213d;--muted:#64748b;--line:#e5e7eb;--ok:#12833b;--danger:#b42318}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--navy);color:#fff;padding:12px 5%;display:flex;justify-content:space-between;align-items:center;gap:18px}.brand{font-size:20px;font-weight:800}.sub{font-size:12px;opacity:.8;margin-top:3px}.brand-wrap{display:flex;align-items:center;gap:14px}.up-logo{width:58px;height:72px;object-fit:contain;background:#fff;border-radius:8px;padding:4px}
+main{max-width:1250px;margin:28px auto;padding:0 18px}.card{background:#fff;border-radius:16px;box-shadow:0 6px 24px #14213d12;padding:22px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.stat{background:#fff;border-radius:14px;padding:18px;box-shadow:0 4px 18px #14213d0d}.stat span{display:block;color:var(--muted);font-size:13px}.stat b{font-size:28px;display:block;margin-top:6px}
+label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px}input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font-size:14px;background:#fff}
+button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;margin:5px 4px 0 0}.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}.danger{background:#b42318}
+.login{max-width:440px;margin:70px auto}.muted{color:var(--muted)}.error,.success{padding:12px;border-radius:9px;margin-top:12px;display:none}.error{background:#fdecec;color:var(--danger)}.success{background:#eaf9ef;color:var(--ok)}
+.bigcode{font-size:32px;font-weight:900;letter-spacing:2px;text-align:center;margin:15px 0}.qrbox{text-align:center}.qrbox img{max-width:260px;width:100%;border-radius:10px}
+.filters{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:8px;align-items:end}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left}th{background:#f8fafc}.session{padding:12px 0;border-bottom:1px solid var(--line)}.pill{font-size:11px;background:#e7f8ed;color:var(--ok);padding:4px 7px;border-radius:10px;margin-left:5px}
+.hidden{display:none!important}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:18px}
+@media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}.filters button{width:100%}}@media(max-width:600px){.stats{grid-template-columns:1fr}.top{display:block}}
+</style>
+</head>
+<body>
+<header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
+<main>
+<section id="loginCard" class="card login">
+<h2>Acceso docente</h2><p class="muted">Ingresa con la cuenta docente creada en Supabase Authentication.</p>
+<label>Correo</label><input id="email" type="email" autocomplete="username">
+<label>Contraseña</label><input id="password" type="password" autocomplete="current-password">
+<button id="loginBtn" style="width:100%">INGRESAR</button><div id="loginErr" class="error"></div>
+</section>
+<section id="app" class="hidden">
+<div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button onclick="openNew()">+ Iniciar nueva clase</button><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
-<div class="grid"><section class="card" id="nueva"><h2>Clase activa</h2><div id="activeEmpty" class="muted">No hay una clase activa. Inicia una clase para generar su código dinámico.</div><div id="activeClass" style="display:none"><p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">Proyecta el QR para que los estudiantes registren su asistencia.</p></div><button onclick="copyCode()">Copiar código</button> <button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
+<div class="grid"><section class="card"><h2>Clase activa</h2><div id="activeEmpty" class="muted">No hay una clase activa.</div><div id="activeClass" class="hidden">
+<p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">Proyecta este QR para que los estudiantes registren asistencia.</p></div>
+<button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
-<section class="card" id="asistencias" style="margin-top:18px"><h2>Asistencias y estudiantes</h2><div class="filters"><select id="filterSubject" onchange="renderTable()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select><select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option><option>I</option><option>V</option><option>A</option><option>B</option><option>H</option></select><input id="search" placeholder="Buscar por nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar CSV</button></div><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Grupo</th><th>Fecha/hora</th></tr></thead><tbody id="tbody"></tbody></table></section>
-<section class="card" id="reportes" style="margin-top:18px"><h2>Configuración</h2><p id="mode" class="muted"></p><button class="secondary" onclick="clearDemo()">Limpiar datos de demostración local</button><p class="muted" style="font-size:12px;margin-top:12px">Para sincronización real entre celulares, configura Supabase en <b>config.js</b> y ejecuta el SQL incluido en <b>supabase.sql</b>.</p></section>
-</main></div>
-<div class="modal" id="modal"><div><h2>Iniciar nueva clase</h2><label>Asignatura</label><select id="subject"><option>Programación I</option><option>Programación II</option></select><label>Grupo</label><select id="group"></select><label>Duración del código</label><select id="duration"><option value="60">60 minutos</option><option value="90">90 minutos</option><option value="120">120 minutos</option></select><button onclick="startClass()">Generar clase y QR</button><button class="secondary" onclick="closeNew()">Cancelar</button></div></div><div class="toast" id="toast"></div>
+<section class="card"><h2>Asistencias y estudiantes</h2><div class="filters">
+<select id="filterSubject" onchange="renderTable()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
+<select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option><option>I</option><option>V</option><option>A</option><option>B</option><option>H</option></select>
+<input id="search" placeholder="Buscar nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar CSV</button></div>
+<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Grupo</th><th>Fecha/hora</th></tr></thead><tbody id="tbody"></tbody></table></div></section>
+</section>
+</main>
+<div id="modal" class="hidden" style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px"><div class="card" style="max-width:430px;width:100%">
+<h2>Iniciar nueva clase</h2><label>Asignatura</label><select id="subject"><option>Programación I</option><option>Programación II</option></select>
+<label>Grupo</label><select id="group"></select><label>Duración del código</label><select id="duration"><option value="60">60 minutos</option><option value="90">90 minutos</option><option value="120">120 minutos</option></select>
+<button onclick="startClass()" style="width:100%">Generar clase y QR</button><button class="secondary" onclick="closeNew()" style="width:100%">Cancelar</button><div id="modalErr" class="error"></div><p class="muted" style="font-size:12px;margin-top:10px">Si aparece un error de permisos, ejecuta el <b>supabase.sql</b> incluido en este ZIP.</p></div></div>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const cfg=window.APP_CONFIG||{}, groups={"Programación I":["I","V","A","B"],"Programación II":["H"]}; let db={sessions:[],records:[]},active=null,client=null;
-if(cfg.supabaseUrl&&cfg.supabaseAnonKey)client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-const keyS="up_demo_sessions",keyA="up_demo_attendance";
-function toast(t){const e=document.getElementById("toast");e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",2200)}
-function codeFor(s,g){let d=new Date(),p=s==="Programación II"?"2":"1";return `PRG${p}-${g}-${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getFullYear()).slice(-2)}-${Math.random().toString(36).slice(2,6).toUpperCase()}`}
-function openNew(){document.getElementById("modal").style.display="flex";updateGroups()}function closeNew(){document.getElementById("modal").style.display="none"}document.getElementById("subject").onchange=updateGroups;function updateGroups(){let s=subject.value;group.innerHTML=groups[s].map(g=>`<option>${g}</option>`).join("")}
-async function startClass(){
- const d=new Date(),s=subject.value,g=group.value,mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
- try{
-  if(client){let {data,error}=await client.from("sessions").insert({subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true}).select().single();if(error)throw error;active=data}
-  else{active={id:code,subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};let a=JSON.parse(localStorage.getItem(keyS)||"[]");a.push(active);localStorage.setItem(keyS,JSON.stringify(a))}
-  closeNew();renderActive();renderAll();toast("Clase iniciada correctamente")
- }catch(e){alert(e.message||"No fue posible iniciar la clase.")}
-}
-function renderActive(){activeEmpty.style.display=active?"none":"block";activeClass.style.display=active?"block":"none";if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.origin+location.pathname.replace("docente.html","index.html")+"?clase="+active.code)}
-async function finishClass(){if(!active)return;try{if(client){let {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error}else{let a=JSON.parse(localStorage.getItem(keyS)||"[]");a=a.map(x=>x.id===active.id?{...x,active:false}:x);localStorage.setItem(keyS,JSON.stringify(a))}active=null;renderActive();renderAll();toast("Clase finalizada")}catch(e){alert(e.message)}}
-function copyCode(){navigator.clipboard?.writeText(active.code);toast("Código copiado")}
-async function fetchData(){
- if(client){let ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(20);let aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(1000);if(ss.error)throw ss.error;if(aa.error)throw aa.error;db={sessions:ss.data||[],records:aa.data||[]};active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
- else{db.sessions=JSON.parse(localStorage.getItem(keyS)||"[]");db.records=JSON.parse(localStorage.getItem(keyA)||"[]");active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
-}
-async function renderAll(){try{await fetchData()}catch(e){console.error(e)}renderActive();renderSessions();renderTable();stats()}
-function renderSessions(){sessions.innerHTML=db.sessions.slice(0,8).map(s=>`<div class="session"><strong>${s.subject} · Grupo ${s.group} ${s.active?'<span class="pill">ACTIVA</span>':''}</strong><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${s.code}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
-function renderTable(){let a=db.records,s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let sessionsById={};db.sessions.forEach(x=>sessionsById[x.id]=x);a=a.map(x=>({...x,session:sessionsById[x.session_id]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));tbody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${x.semestre}</td><td>${esc(x.correo)}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="9" class="muted">No hay registros.</td></tr>'}
-function stats(){totalStudents.textContent=new Set(db.records.map(x=>x.cedula)).size;let today=new Date().toLocaleDateString("es-CO");presentes.textContent=db.records.filter(x=>new Date(x.created_at).toLocaleDateString("es-CO")===today).length;activas.textContent=db.sessions.filter(x=>x.active&&new Date(x.expires_at)>new Date()).length;totalReg.textContent=db.records.length;mode.textContent=client?"Modo: BASE DE DATOS COMPARTIDA (Supabase)":"Modo demostración: datos solo en este navegador."}
+const cfg=window.APP_CONFIG||{}, groups={"Programación I":["I","V","A","B"],"Programación II":["H"]};
+let client=null,db={sessions:[],records:[]},active=null;
+if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+function showErr(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block"}function hideErr(id){document.getElementById(id).style.display="none"}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
-function exportCSV(){let rows=[["Estudiante","Cedula","Celular","Carrera","Semestre","Correo","Grupo","Fecha/Hora"],...db.records.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.group,new Date(x.created_at).toLocaleString("es-CO")])];let csv="\ufeff"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n"),blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="asistencia_estudiantes.csv";a.click();URL.revokeObjectURL(a.href)}
-function clearDemo(){if(client){alert("El modo Supabase no se limpia desde este botón.");return}if(confirm("¿Eliminar datos locales de demostración?")){localStorage.removeItem(keyS);localStorage.removeItem(keyA);renderAll()}}
-updateGroups();renderAll();setInterval(renderAll,15000);
-</script></body></html>
+async function login(){hideErr("loginErr");if(!client)return showErr("loginErr","Falta configurar Supabase en config.js.");try{const {error}=await client.auth.signInWithPassword({email:email.value.trim(),password:password.value});if(error)throw error;password.value="" ;showApp()}catch(e){showErr("loginErr","Correo o contraseña incorrectos, o la cuenta no está disponible.")}}
+loginBtn.onclick=login;password.onkeydown=e=>{if(e.key==="Enter")login()};
+async function showApp(){const {data}=await client.auth.getUser();if(!data.user)return;loginCard.classList.add("hidden");app.classList.remove("hidden");userBox.textContent=data.user.email;await renderAll()}
+async function logout(){await client.auth.signOut();app.classList.add("hidden");loginCard.classList.remove("hidden");userBox.textContent=""}
+async function startClass(){
+hideErr("modalErr");
+if(!client)return showErr("modalErr","Supabase no está configurado.");
+const {data:{session}}=await client.auth.getSession();
+if(!session)return showErr("modalErr","Tu sesión docente no está activa. Cierra sesión, vuelve a ingresar y prueba nuevamente.");
+const d=new Date(),s=subject.value,g=group.value,mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
+try{
+const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
+const {data,error}=await client.from("sessions").insert(payload).select().single();
+if(error){
+  console.error("Supabase sessions.insert:",error);
+  let msg=error.message||"Error desconocido";
+  if(error.code==="42501") msg="Supabase rechazó la creación de la clase por permisos/RLS. Ejecuta el supabase.sql actualizado en SQL Editor.";
+  if(error.code==="42P01") msg="La tabla sessions no existe. Ejecuta el archivo supabase.sql en Supabase > SQL Editor.";
+  throw new Error(msg);
+}
+active=data;closeNew();await renderAll()
+}catch(e){showErr("modalErr",e.message||"No fue posible iniciar la clase.")}}
+function codeFor(s,g){let d=new Date(),p=s==="Programación II"?"2":"1";return `PRG${p}-${g}-${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getFullYear()).slice(-2)}-${Math.random().toString(36).slice(2,6).toUpperCase()}`}
+function openNew(){modal.classList.remove("hidden");updateGroups()}function closeNew(){modal.classList.add("hidden")}subject.onchange=updateGroups;function updateGroups(){group.innerHTML=groups[subject.value].map(g=>`<option>${g}</option>`).join("")}
+function renderActive(){activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.href.replace("docente.html","index.html").split("?")[0]+"?clase="+active.code)}
+async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;active=null;await renderAll()}catch(e){alert(e.message)}}
+function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código copiado: "+active.code)}
+async function fetchData(){const ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(100);const aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(5000);if(ss.error)throw ss.error;if(aa.error)throw aa.error;db={sessions:ss.data||[],records:aa.data||[]};active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
+async function renderAll(){try{await fetchData();renderActive();renderSessions();renderTable();stats()}catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}}
+function renderSessions(){sessions.innerHTML=db.sessions.slice(0,10).map(s=>`<div class="session"><strong>${esc(s.subject)} · Grupo ${esc(s.group)} ${s.active&&new Date(s.expires_at)>new Date()?'<span class="pill">ACTIVA</span>':''}</strong><br><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${esc(s.code)}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
+function renderTable(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);let a=db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));tbody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="9" class="muted">No hay registros.</td></tr>'}
+function stats(){totalStudents.textContent=new Set(db.records.map(x=>x.cedula)).size;let today=new Date().toLocaleDateString("es-CO");presentes.textContent=db.records.filter(x=>new Date(x.created_at).toLocaleDateString("es-CO")===today).length;activas.textContent=db.sessions.filter(x=>x.active&&new Date(x.expires_at)>new Date()).length;totalReg.textContent=db.records.length}
+function exportCSV(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase(),by={};db.sessions.forEach(x=>by[x.id]=x);let a=db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));let rows=[["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha/Hora"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.session.subject||"",x.group,new Date(x.created_at).toLocaleString("es-CO")])];let csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");let blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),aEl=document.createElement("a");aEl.href=url;aEl.download="asistencias.csv";aEl.click();URL.revokeObjectURL(url)}
+(async()=>{if(client){const {data:{session}}=await client.auth.getSession();if(session)showApp()}})();
+</script>
+</body></html>

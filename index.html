@@ -6,25 +6,25 @@
 <style>
 :root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--text:#14213d;--muted:#64748b;--line:#e5e7eb;--ok:#12833b;--danger:#b42318}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-header{background:var(--navy);color:#fff;padding:20px 6%;display:flex;justify-content:space-between;align-items:center;gap:20px}.brand{font-size:21px;font-weight:800}.sub{font-size:13px;opacity:.8;margin-top:4px}nav a{color:#fff;text-decoration:none;margin-left:18px;font-size:14px}
-main{max-width:1100px;margin:32px auto;padding:0 20px}.hero,.card{background:#fff;border-radius:16px;box-shadow:0 6px 24px #14213d12}.hero{padding:30px;margin-bottom:20px}h1{margin:0 0 8px;font-size:31px}.muted{color:var(--muted)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card{padding:24px}.badge{display:inline-block;padding:6px 10px;border-radius:18px;background:#e7f8ed;color:var(--ok);font-weight:700;font-size:12px}
-label{display:block;font-weight:700;font-size:13px;margin:13px 0 6px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:15px}button{border:0;border-radius:9px;padding:13px 16px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;margin-top:16px;width:100%}.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
-.notice{padding:13px;border-radius:10px;background:#eef6ff;margin-top:15px;font-size:13px}.success,.error{display:none;padding:14px;border-radius:10px;margin-top:15px;font-weight:700}.success{background:#eaf9ef;color:#126b35}.error{background:#fdecec;color:var(--danger)}
-footer{text-align:center;color:var(--muted);padding:30px}
-@media(max-width:800px){header{display:block}nav{margin-top:12px}nav a{margin:0 15px 0 0}.grid{grid-template-columns:1fr}}
+header{background:var(--navy);color:#fff;padding:14px 6%;display:flex;justify-content:space-between;align-items:center;gap:20px}.brand-wrap{display:flex;align-items:center;gap:12px}.up-logo{width:52px;height:62px;object-fit:contain;background:#fff;border-radius:7px;padding:3px}.hero-logo{display:block;width:92px;height:110px;object-fit:contain;margin:0 auto 16px}.brand{font-size:21px;font-weight:800}.sub{font-size:13px;opacity:.8;margin-top:4px}nav a{color:#fff;text-decoration:none;margin-left:18px;font-size:14px}
+main{max-width:1100px;margin:32px auto;padding:0 20px}.hero,.card{background:#fff;border-radius:16px;box-shadow:0 6px 24px #14213d12}.hero{padding:30px;margin-bottom:20px}h1{margin:0 0 8px;font-size:31px}
+.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card{padding:24px}
+label{display:block;font-weight:700;font-size:13px;margin:13px 0 6px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-size:15px}
+button{border:0;border-radius:9px;padding:13px 16px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;margin-top:16px;width:100%}.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
+.notice{padding:13px;border-radius:10px;background:#eef6ff;margin-top:15px;font-size:13px}.success,.error{display:none;padding:14px;border-radius:10px;margin-top:15px;font-weight:700}.success{background:#eaf9ef;color:var(--ok)}.error{background:#fdecec;color:var(--danger)}
+footer{text-align:center;color:var(--muted);padding:30px}@media(max-width:800px){header{display:block}nav{margin-top:12px}nav a{margin:0 15px 0 0}.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Sistema de Control Virtual de Asistencia</div></div>
+<header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Sistema de Control Virtual de Asistencia</div></div></div>
 <nav><a href="index.html">Estudiante</a><a href="docente.html">Panel docente</a></nav></header>
 <main>
-<section class="hero"><h1>Registro de asistencia</h1><p class="muted">Programación I y Programación II · Docente: <b>Julio Cesar Contreras</b></p></section>
+<section class="hero"><img class="hero-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><h1>Registro de asistencia</h1><p class="muted">Programación I y Programación II · Docente: <b>Julio Cesar Contreras</b></p></section>
 <div class="grid">
-<section class="card"><h2>Clase</h2><p id="status" class="muted">Busca la clase mediante el QR o escribe su código.</p>
-<label>Código dinámico de clase</label><input id="clase" placeholder="Ej. PRG1-I-020926-X7KQ">
+<section class="card"><h2>Clase</h2><p id="status" class="muted">Escanea el QR o escribe el código de la clase.</p>
+<label>Código dinámico</label><input id="clase" placeholder="Ej. PRG1-I-030926-X7KQ">
 <button id="buscar">Cargar clase</button><div id="classInfo" style="display:none;margin-top:18px"><p><b>Asignatura:</b> <span id="asig"></span></p><p><b>Grupo:</b> <span id="grupo"></span></p><p><b>Vigencia:</b> <span id="vigencia"></span></p></div></section>
-<section class="card"><h2>Datos del estudiante</h2><p class="muted">Diligencia tus datos una sola vez por sesión.</p>
+<section class="card"><h2>Datos del estudiante</h2><p class="muted">Diligencia tus datos para registrar la asistencia.</p>
 <form id="form">
 <label>Nombre completo</label><input id="nombre" required>
 <label>Número de cédula</label><input id="cedula" inputmode="numeric" required>
@@ -36,47 +36,37 @@ footer{text-align:center;color:var(--muted);padding:30px}
 <button type="submit">REGISTRAR ASISTENCIA</button>
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
-<div class="notice"><b>Privacidad:</b> usa tus datos académicos reales. La cédula y el correo se validan para impedir registros duplicados.</div>
+<div class="notice"><b>Privacidad:</b> tus datos se usan para el control académico de asistencia. El sistema impide registrar dos veces la misma cédula o correo en una misma clase.</div>
 </main><footer>Programación I · Grupos I, V, A, B · Programación II · Grupo H</footer>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const cfg=window.APP_CONFIG||{}; let session=null;
-const qs=new URLSearchParams(location.search); const initial=qs.get("clase"); if(initial) document.getElementById("clase").value=initial;
+const cfg=window.APP_CONFIG||{}; let session=null, client=null;
 const groups={"Programación I":["I","V","A","B"],"Programación II":["H"]};
-function msg(id,t){let e=document.getElementById(id);e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",5000)}
+if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+const qs=new URLSearchParams(location.search), initial=qs.get("clase");
+if(initial) document.getElementById("clase").value=initial;
+function msg(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",6000)}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
 async function loadSession(){
  const code=document.getElementById("clase").value.trim(); if(!code)return msg("err","Escribe el código de la clase.");
+ if(!client)return msg("err","El sistema aún no está conectado a Supabase.");
  try{
-  if(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase){
-   const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-   const {data,error}=await client.from("sessions").select("*").eq("code",code).eq("active",true).maybeSingle();
-   if(error)throw error;if(!data)throw new Error("No existe una clase activa con ese código.");
-   session=data;
-  }else{
-   const local=JSON.parse(localStorage.getItem("up_demo_sessions")||"[]");session=local.find(x=>x.code===code&&x.active!==false);if(!session)throw new Error("No se encontró la clase. Configure Supabase para uso entre varios celulares.");
-  }
-  document.getElementById("asig").textContent=session.subject;document.getElementById("grupo").textContent=session.group;
-  document.getElementById("vigencia").textContent=new Date(session.expires_at||session.expires).toLocaleString("es-CO");
-  document.getElementById("classInfo").style.display="block";
-  const opts=groups[session.subject]||[session.group];document.getElementById("grupoForm").innerHTML=opts.map(g=>`<option ${g===session.group?"selected":""}>${g}</option>`).join("");
-  document.getElementById("status").textContent="Clase cargada correctamente.";
+  const {data,error}=await client.from("sessions").select("*").eq("code",code).eq("active",true).gt("expires_at",new Date().toISOString()).maybeSingle();
+  if(error)throw error;if(!data)throw new Error("No existe una clase activa con ese código o ya venció.");
+  session=data;
+  asig.textContent=session.subject;grupo.textContent=session.group;vigencia.textContent=new Date(session.expires_at).toLocaleString("es-CO");
+  classInfo.style.display="block";grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  status.textContent="Clase cargada correctamente.";
  }catch(e){msg("err",e.message||"No fue posible cargar la clase.")}
 }
-document.getElementById("buscar").onclick=loadSession;
-document.getElementById("form").onsubmit=async e=>{
+buscar.onclick=loadSession;
+form.onsubmit=async e=>{
  e.preventDefault(); if(!session)return msg("err","Primero carga la clase con su código.");
- const record={session_id:session.id||session.code,name:nombre.value.trim(),cedula:cedula.value.trim(),celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:Number(semestre.value),correo:correo.value.trim().toLowerCase(),group:grupoForm.value,created_at:new Date().toISOString()};
+ const record={session_ref:session.id,name:nombre.value.trim(),cedula:cedula.value.trim(),celular:celular.value.trim(),carrera:carrera.value.trim(),semestre:Number(semestre.value),correo:correo.value.trim().toLowerCase(),group:grupoForm.value};
  try{
-  if(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase){
-   const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-   const {error}=await client.from("attendance").insert(record);if(error){if(error.code==="23505")throw new Error("La cédula o el correo ya registró asistencia en esta clase.");throw error;}
-  }else{
-   let d=JSON.parse(localStorage.getItem("up_demo_attendance")||"[]");
-   if(d.some(x=>x.session_id===record.session_id&&(x.cedula.toLowerCase()===record.cedula.toLowerCase()||x.correo===record.correo)))throw new Error("La cédula o el correo ya registró asistencia en esta clase.");
-   d.push(record);localStorage.setItem("up_demo_attendance",JSON.stringify(d));
-  }
-  document.getElementById("ok").innerHTML=`✓ Asistencia registrada correctamente.<br>${esc(record.name)} · ${new Date(record.created_at).toLocaleTimeString("es-CO")}`;document.getElementById("ok").style.display="block";e.target.reset();grupoForm.value=session.group;
+  const {error}=await client.from("attendance").insert(record);
+  if(error){if(error.code==="23505")throw new Error("La cédula o el correo ya registró asistencia en esta clase.");throw error;}
+  ok.innerHTML=`✓ Asistencia registrada correctamente.<br>${esc(record.name)} · ${new Date().toLocaleTimeString("es-CO")}`;ok.style.display="block";e.target.reset();grupoForm.value=session.group;
  }catch(err){msg("err",err.message||"No fue posible registrar la asistencia.")}
 };
 if(initial)loadSession();

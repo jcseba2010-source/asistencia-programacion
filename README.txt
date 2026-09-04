@@ -1,33 +1,24 @@
-# Sistema de Asistencia — Programación I y II
+SISTEMA DE ASISTENCIA - VERSION COMPATIBLE BIGINT
 
-## Archivos
-- `index.html`: página del estudiante.
-- `docente.html`: panel del docente.
-- `config.js`: configuración de Supabase.
-- `supabase.sql`: tablas, restricciones y políticas iniciales.
-- `README.txt`: instrucciones.
+Esta versión está adaptada a la estructura detectada en tu Supabase:
+- public.sessions.id = BIGINT
+- public.attendance.session_id existente = UUID
 
-## Grupos
-- Programación I: I, V, A y B.
-- Programación II: H.
+Para no borrar ni convertir registros antiguos, se conserva attendance.session_id y se crea:
+- attendance.session_ref BIGINT
 
-## Publicar en GitHub Pages
-Sube todos los archivos a la raíz del repositorio y activa Settings > Pages > Deploy from a branch > main > /(root).
+La página de estudiantes registra las asistencias nuevas usando session_ref.
+El panel docente relaciona las asistencias con las clases usando session_ref.
 
-## Activar base de datos compartida
-1. Crea un proyecto en Supabase.
-2. Abre SQL Editor y ejecuta `supabase.sql`.
-3. En Project Settings > API copia la URL del proyecto y la clave pública `anon`.
-4. Abre `config.js` y completa `supabaseUrl` y `supabaseAnonKey`.
-5. Vuelve a subir `config.js` a GitHub Pages.
+PASOS:
+1. En Supabase > SQL Editor, pega y ejecuta TODO el contenido de supabase.sql.
+2. Debe finalizar sin el error UUID/BIGINT de attendance_session_id_fkey.
+3. Sube index.html, docente.html y config.js a tu repositorio de GitHub Pages.
+4. Prueba creando una clase desde el panel docente.
+5. Desde el celular abre la página y registra una asistencia.
 
-No uses nunca la `service_role key` en `config.js`.
-
-## Funcionamiento
-Docente -> Iniciar nueva clase -> se genera código dinámico + QR.
-Estudiante -> escanea QR -> diligencia nombre, cédula, celular, carrera, semestre, correo y grupo -> registra asistencia.
-El sistema evita dos registros de la misma cédula o correo dentro de una misma sesión.
-El panel docente consulta los registros compartidos y permite filtrar/exportar CSV.
-
-## Nota de seguridad
-La versión incluida deja políticas públicas para facilitar la puesta en marcha del prototipo. Para uso institucional con datos personales, se recomienda añadir autenticación del docente y políticas RLS más restrictivas antes de producción.
+IMPORTANTE:
+- No borres la tabla attendance.
+- No borres la tabla sessions.
+- No necesitas convertir attendance.session_id.
+- Los registros históricos quedan conservados.

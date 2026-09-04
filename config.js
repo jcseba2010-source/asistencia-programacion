@@ -1,10 +1,4 @@
-/* CONFIGURACIÓN
-   Para usar el sistema entre varios celulares, crea un proyecto Supabase y pega aquí:
-   supabaseUrl: URL del proyecto
-   supabaseAnonKey: clave pública anon
-   No pongas aquí la service_role key.
-*/
-window.APP_CONFIG={
-  supabaseUrl:"",
-  supabaseAnonKey:""
+window.APP_CONFIG = {
+  supabaseUrl: "https://fgnvvzddhofqruhzaxoh.supabase.co",
+  supabaseAnonKey: "sb_publishable_OWGtzbsF-jizCS9kf8cIlg_nrg7hLu6"
 };
