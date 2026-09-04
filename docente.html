@@ -294,11 +294,72 @@ td{
 <script>
 const cfg=window.APP_CONFIG||{};
 let client=null,db={sessions:[],records:[],students:[],groups:[]},active=null,teacherName="DOCENTE";
-if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-function showErr(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block"}function hideErr(id){document.getElementById(id).style.display="none"}
+if(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase){ client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey); }
+function showErr(id,t){
+ const e=document.getElementById(id);
+ if(!e)return;
+ e.textContent=t;
+ e.style.display="block";
+}
+function hideErr(id){
+ const e=document.getElementById(id);
+ if(e)e.style.display="none";
+}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
-async function login(){hideErr("loginErr");if(!client)return showErr("loginErr","Falta configurar Supabase en config.js.");try{const {error}=await client.auth.signInWithPassword({email:email.value.trim(),password:password.value});if(error)throw error;password.value="" ;showApp()}catch(e){showErr("loginErr","Correo o contraseña incorrectos, o la cuenta no está disponible.")}}
-loginBtn.onclick=login;password.onkeydown=e=>{if(e.key==="Enter")login()};
+
+async function login(){
+ const emailInput=document.getElementById("email");
+ const passwordInput=document.getElementById("password");
+ const btn=document.getElementById("loginBtn");
+ hideErr("loginErr");
+
+ if(!emailInput||!passwordInput||!btn){
+   alert("Error interno del formulario de acceso.");
+   return;
+ }
+ const correo=emailInput.value.trim();
+ const clave=passwordInput.value;
+ if(!correo||!clave){
+   showErr("loginErr","Escribe el correo y la contraseña.");
+   return;
+ }
+ if(!window.supabase){
+   showErr("loginErr","No cargó la librería de Supabase. Actualiza la página y verifica tu conexión a Internet.");
+   return;
+ }
+ if(!client){
+   if(!cfg.supabaseUrl||!cfg.supabaseAnonKey){
+     showErr("loginErr","Falta configurar Supabase en config.js.");
+     return;
+   }
+   client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+ }
+
+ btn.disabled=true;
+ btn.textContent="INGRESANDO...";
+ showErr("loginErr","Conectando con Supabase...");
+ try{
+   const {data,error}=await client.auth.signInWithPassword({email:correo,password:clave});
+   if(error)throw error;
+   if(!data?.session){
+     throw new Error("Supabase no devolvió una sesión.");
+   }
+   hideErr("loginErr");
+   passwordInput.value="";
+   await showApp();
+ }catch(e){
+   console.error("Error de acceso:",e);
+   showErr("loginErr","No fue posible ingresar: "+(e?.message||"Error desconocido"));
+ }finally{
+   btn.disabled=false;
+   btn.textContent="INGRESAR";
+ }
+}
+
+const loginBtnEl=document.getElementById("loginBtn");
+const passwordEl=document.getElementById("password");
+if(loginBtnEl)loginBtnEl.addEventListener("click",login);
+if(passwordEl)passwordEl.addEventListener("keydown",e=>{if(e.key==="Enter")login()});
 async function showApp(){
 const {data}=await client.auth.getUser();
 if(!data.user)return;
