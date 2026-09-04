@@ -1,0 +1,14 @@
+CLAVE DE SEGURIDAD PARA BORRAR TODO
+
+1. Ejecuta EJECUTAR_CLAVE_BORRADO.sql en Supabase.
+2. Sube los archivos del ZIP a GitHub Pages.
+3. La clave inicial es: ADMIN2026
+4. En el panel docente > Administración > Seguridad de borrado,
+   pulsa CAMBIAR CLAVE DE BORRADO para poner tu propia clave.
+5. BORRAR TODO pedirá:
+   - la clave de seguridad;
+   - escribir exactamente BORRAR TODO.
+
+La clave real no queda escrita en docente.html.
+La instalación NO borra datos.
+BORRAR TODO no elimina la cuenta Auth del docente.

@@ -258,7 +258,12 @@ td{
     <p id="attendanceLocationStatus" class="muted">Ubicación del aula: sin verificar.</p>
   </div>
 
-  <h3 style="margin-top:24px">Grupos creados</h3>
+  <div style="margin-top:24px;padding:16px;border:1px solid #d7e2ef;border-radius:12px">
+<h3 style="margin-top:0">Seguridad de borrado</h3>
+<p class="muted">La opción BORRAR TODO exige una clave adicional. La clave no se guarda en GitHub Pages.</p>
+<button type="button" onclick="cambiarClaveBorrado()">CAMBIAR CLAVE DE BORRADO</button>
+</div>
+<h3 style="margin-top:24px">Grupos creados</h3>
   <div id="adminGroupsList" class="muted">Cargando grupos...</div>
 
   <hr style="border:0;border-top:1px solid #e5e7eb;margin:26px 0">
@@ -456,6 +461,53 @@ function renderActive(){
 async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;stopQrRotation();active=null;await renderAll()}catch(e){alert(e.message)}}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código de clase copiado. Para registrar asistencia el estudiante debe escanear el QR dinámico vigente.")}
 
+
+
+async function borrarTodoConClave(){
+ const clave=prompt("OPERACIÓN CRÍTICA\\n\\nEscribe la clave de seguridad para BORRAR TODO:");
+ if(clave===null)return;
+ if(!clave.trim()){ alert("Debes escribir la clave de seguridad."); return; }
+
+ const confirmacion=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
+ if(confirmacion!=="BORRAR TODO"){
+   alert("Operación cancelada.");
+   return;
+ }
+
+ try{
+   const {data,error}=await client.rpc("admin_reset_system_secure",{p_delete_key:clave});
+   if(error)throw error;
+   const r=Array.isArray(data)?data[0]:data;
+   if(r && r.ok===false)throw new Error(r.message||"Clave incorrecta.");
+   alert((r&&r.message)||"Sistema reiniciado correctamente.");
+   await fetchData();
+ }catch(e){
+   alert("No se pudo borrar: "+(e.message||e));
+ }
+}
+
+async function cambiarClaveBorrado(){
+ const actual=prompt("Escribe la clave de borrado ACTUAL:");
+ if(actual===null)return;
+ const nueva=prompt("Escribe la NUEVA clave (mínimo 8 caracteres):");
+ if(nueva===null)return;
+ const repetir=prompt("Repite la NUEVA clave:");
+ if(repetir===null)return;
+ if(nueva!==repetir){alert("Las claves nuevas no coinciden.");return;}
+ if(nueva.length<8){alert("La nueva clave debe tener mínimo 8 caracteres.");return;}
+ try{
+   const {data,error}=await client.rpc("admin_change_delete_key",{
+     p_current_key:actual,
+     p_new_key:nueva
+   });
+   if(error)throw error;
+   const r=Array.isArray(data)?data[0]:data;
+   if(r && r.ok===false)throw new Error(r.message||"No fue posible cambiar la clave.");
+   alert((r&&r.message)||"Clave cambiada correctamente.");
+ }catch(e){
+   alert("No se pudo cambiar la clave: "+(e.message||e));
+ }
+}
 
 async function guardarUbicacionAula(){
  const status=document.getElementById("attendanceLocationStatus");
