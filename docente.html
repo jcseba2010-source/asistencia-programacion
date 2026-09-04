@@ -360,9 +360,16 @@ async function renderAll(){
    adminTeacherName.value=teacherName;
    refreshDynamicGroups();
    renderAdminGroups();
-   renderActive();renderSessions();renderStudents();renderTable();stats();
- }catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}
-}catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}}
+   renderActive();
+   renderSessions();
+   renderStudents();
+   renderTable();
+   stats();
+ }catch(e){
+   console.error(e);
+   alert("No se pudieron cargar los datos: "+e.message);
+ }
+}
 function renderSessions(){sessions.innerHTML=db.sessions.slice(0,10).map(s=>`<div class="session"><strong>${esc(s.subject)} · Grupo ${esc(s.group)} ${s.active&&new Date(s.expires_at)>new Date()?'<span class="pill">ACTIVA</span>':''}</strong><br><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${esc(s.code)}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
 function subjectForGroup(g){
  const x=db.groups.find(v=>v.group_name===g);
@@ -375,9 +382,23 @@ function filteredStudents(){
  return db.students.filter(x=>(!g||x.group===g)&&(!s||subjectForGroup(x.group)===s)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));
 }
 function renderStudents(){
- let a=filteredStudents();
- studentsBody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td><td><button class="danger" onclick="deleteStudentAdmin('${String(x.cedula).replaceAll("'","\'")}')">Borrar</button></td></tr>`).join("")||'<tr><td colspan="11" class="muted">No hay estudiantes registrados.</td></tr>';
-}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="10" class="muted">No hay estudiantes registrados.</td></tr>'}
+  const a=filteredStudents();
+  studentsBody.innerHTML = a.length
+    ? a.map((x,i)=>`<tr>
+        <td>${i+1}</td>
+        <td>${esc(x.name)}</td>
+        <td>${esc(x.cedula)}</td>
+        <td>${esc(x.celular)}</td>
+        <td>${esc(x.carrera)}</td>
+        <td>${esc(x.semestre)}</td>
+        <td>${esc(x.correo)}</td>
+        <td>${esc(subjectForGroup(x.group))}</td>
+        <td>${esc(x.group)}</td>
+        <td>${new Date(x.created_at).toLocaleString("es-CO")}</td>
+        <td><button class="danger" data-cedula="${esc(x.cedula)}" onclick="deleteStudentAdmin(this.dataset.cedula)">Borrar</button></td>
+      </tr>`).join("")
+    : '<tr><td colspan="11" class="muted">No hay estudiantes registrados.</td></tr>';
+}
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderTable(){
  let a=filteredAttendance(), order=db.groups.map(x=>x.group_name), html="";
