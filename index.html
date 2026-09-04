@@ -147,7 +147,7 @@ footer{
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Sistema de Control Virtual de Asistencia</div></div></div>
 <nav><a href="index.html">Estudiante</a><a href="docente.html">Panel docente</a></nav></header>
-<div class="teacher-band" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente Ocasional: Mg. JULIO CESAR CONTRERAS VARGAS</div>
+<div class="teacher-band" style="text-align:center;color:white;padding:10px 12px;font-weight:700"><span id="studentTeacherBand">Docente: cargando...</span></div>
 
 
 <div class="quote-side">
@@ -162,7 +162,7 @@ footer{
 </div>
 
 <main>
-<section class="hero"><img class="hero-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><h1>Registro de asistencia</h1><p class="muted">Programación I y Programación II · Docente: <b>Julio Cesar Contreras</b></p></section>
+<section class="hero"><img class="hero-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><h1>Registro de asistencia</h1><p class="muted">Sistema de asistencia · Docente: <b id="studentTeacherName">cargando...</b></p></section>
 <div class="grid">
 <section class="card"><h2>Clase</h2><p id="status" class="muted">Escanea el QR o escribe el código de la clase.</p>
 <label>Código dinámico</label><input id="clase" placeholder="Ej. PRG1-I-030926-X7KQ">
@@ -183,12 +183,32 @@ footer{
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
 <div class="notice"><b>Privacidad:</b> tus datos se usan para el control académico de asistencia. Cada cédula pertenece a un solo grupo. El sistema impide cambiar de grupo y también evita duplicar la asistencia en una misma clase.</div>
-</main><footer>Programación I · Grupos I, V, A, B · Programación II · Grupo H</footer>
+</main><footer id="dynamicFooter">Sistema virtual de asistencia · Universidad de Pamplona</footer>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const cfg=window.APP_CONFIG||{}; let session=null, client=null;
-const groups={"Programación I":["I","V","A","B"],"Programación II":["H"]};
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+
+async function loadPublicSettings(){
+ if(!client)return;
+ try{
+   const {data:settings}=await client.from("app_settings").select("teacher_name").eq("id",1).maybeSingle();
+   const {data:groups}=await client.from("class_groups").select("subject,group_name").order("subject").order("group_name");
+   const n=settings?.teacher_name||"DOCENTE POR DEFINIR";
+   const band=document.getElementById("studentTeacherBand");
+   const name=document.getElementById("studentTeacherName");
+   if(band)band.textContent="Docente: "+n;
+   if(name)name.textContent=n;
+   const footer=document.getElementById("dynamicFooter");
+   if(footer && groups){
+     const by={};
+     groups.forEach(x=>(by[x.subject]??=[]).push(x.group_name));
+     footer.textContent=Object.entries(by).map(([s,g])=>`${s} · Grupos ${g.join(", ")}`).join(" · ") || "Sistema virtual de asistencia";
+   }
+ }catch(e){console.warn("No fue posible cargar configuración pública",e)}
+}
+loadPublicSettings();
+
 const qs=new URLSearchParams(location.search), initial=qs.get("clase");
 if(initial) document.getElementById("clase").value=initial;
 function msg(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block";setTimeout(()=>e.style.display="none",6000)}

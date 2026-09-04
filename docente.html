@@ -185,7 +185,7 @@ td{
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
-<div class="teacher-band" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente Ocasional: Mg. JULIO CESAR CONTRERAS VARGAS</div>
+<div class="teacher-band" id="teacherBand" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente: cargando...</div>
 
 
 <div class="quote-side">
@@ -214,33 +214,74 @@ td{
 <button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
 <section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. La cédula determina su grupo permanente.</p><div class="filters">
-<select id="studentGroup" onchange="renderStudents()"><option value="">Todos los grupos</option><option>I</option><option>V</option><option>A</option><option>B</option><option>H</option></select>
+<select id="studentGroup" onchange="renderStudents()"><option value="">Todos los grupos</option></select>
 <select id="studentSubject" onchange="renderStudents()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <input id="studentSearch" placeholder="Buscar nombre, cédula o correo..." oninput="renderStudents()"><button onclick="exportStudentsCSV()">Exportar estudiantes</button></div>
-<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Registrado</th></tr></thead><tbody id="studentsBody"></tbody></table></div></section>
+<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Registrado</th><th>Acción</th></tr></thead><tbody id="studentsBody"></tbody></table></div></section>
 <section class="card"><h2>Historial de asistencias por grupos</h2><p class="muted">Las asistencias se muestran separadas por grupo. El mismo estudiante puede aparecer varias veces dentro de su grupo, una por cada clase asistida.</p><div class="filters">
 <select id="filterSubject" onchange="renderTable()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
-<select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option><option>I</option><option>V</option><option>A</option><option>B</option><option>H</option></select>
+<select id="filterGroup" onchange="renderTable()"><option value="">Todos los grupos</option></select>
 <input id="search" placeholder="Buscar nombre, cédula o correo..." oninput="renderTable()"><button onclick="exportCSV()">Exportar asistencias</button></div>
 <div id="attendanceGroups"></div></section>
 
 
 
-<div class="card" id="zonaPeligroDB" style="margin-top:24px;border:1px solid #f0b4b4!important;">
-  <h2 style="color:#991b1b;margin-top:0">Zona de administración</h2>
-  <p style="color:#64748b">
-    En modo multidocente cada profesor administra únicamente sus propios datos.
-  </p>
-  <button id="btnLimpiarMisDatos" type="button"
-    style="background:#b42318;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
-    LIMPIAR MIS CLASES Y ASISTENCIAS
-  </button>
-  <button id="btnLimpiarBaseTotal" type="button"
-    style="display:none;background:#7f1d1d;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-weight:800;cursor:pointer">
-    ADMIN: LIMPIAR TODA LA PLATAFORMA
-  </button>
-</div>
+<div class="card" id="administracionEditable" style="margin-top:24px;border:1px solid #d7e2ef!important;">
+  <h2 style="margin-top:0">Administración del sistema</h2>
+  <p class="muted">Desde aquí puedes borrar y volver a crear el profesor visible, los grupos y los estudiantes.</p>
 
+  <div class="grid">
+    <div>
+      <h3>Profesor</h3>
+      <label>Nombre que aparecerá en el sistema</label>
+      <input id="adminTeacherName" placeholder="Ej. Mg. JULIO CESAR CONTRERAS VARGAS">
+      <button type="button" onclick="saveTeacherName()">GUARDAR PROFESOR</button>
+    </div>
+
+    <div>
+      <h3>Crear grupo</h3>
+      <label>Asignatura</label>
+      <input id="adminGroupSubject" placeholder="Ej. Programación I">
+      <label>Nombre del grupo</label>
+      <input id="adminGroupName" placeholder="Ej. A">
+      <button type="button" onclick="createGroupAdmin()">CREAR GRUPO</button>
+    </div>
+  </div>
+
+  <h3 style="margin-top:24px">Grupos creados</h3>
+  <div id="adminGroupsList" class="muted">Cargando grupos...</div>
+
+  <hr style="border:0;border-top:1px solid #e5e7eb;margin:26px 0">
+
+  <h3>Crear estudiante manualmente</h3>
+  <div class="grid">
+    <div>
+      <label>Nombre completo</label><input id="adminStudentName">
+      <label>Cédula</label><input id="adminStudentCedula">
+      <label>Celular</label><input id="adminStudentCelular">
+      <label>Carrera</label><input id="adminStudentCarrera">
+    </div>
+    <div>
+      <label>Semestre</label>
+      <select id="adminStudentSemestre">
+        <option value="">Selecciona</option>
+        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+        <option>6</option><option>7</option><option>8</option><option>9</option><option>10</option>
+      </select>
+      <label>Correo</label><input id="adminStudentCorreo" type="email">
+      <label>Grupo</label><select id="adminStudentGroup"></select>
+      <button type="button" onclick="createStudentAdmin()">CREAR ESTUDIANTE</button>
+    </div>
+  </div>
+
+  <hr style="border:0;border-top:1px solid #e5e7eb;margin:26px 0">
+
+  <h3 style="color:#991b1b">Borrados generales</h3>
+  <p class="muted">Estas acciones requieren confirmación y no se pueden deshacer.</p>
+  <button type="button" class="danger" onclick="deleteAllStudentsAdmin()">BORRAR TODOS LOS ESTUDIANTES</button>
+  <button type="button" class="danger" onclick="deleteAllGroupsAdmin()">BORRAR TODOS LOS GRUPOS Y SUS DATOS</button>
+  <button type="button" class="danger" onclick="resetSystemAdmin()">REINICIAR PROFESOR + GRUPOS + ESTUDIANTES</button>
+</div>
 
 </section>
 
@@ -251,26 +292,20 @@ td{
 <button onclick="startClass()" style="width:100%">Generar clase y QR</button><button class="secondary" onclick="closeNew()" style="width:100%">Cancelar</button><div id="modalErr" class="error"></div><p class="muted" style="font-size:12px;margin-top:10px">Si aparece un error de permisos, ejecuta el <b>supabase.sql</b> incluido en este ZIP.</p></div></div>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const cfg=window.APP_CONFIG||{}, groups={"Programación I":["I","V","A","B"],"Programación II":["H"]};
-let client=null,db={sessions:[],records:[],students:[]},active=null,currentTeacher=null;
+const cfg=window.APP_CONFIG||{};
+let client=null,db={sessions:[],records:[],students:[],groups:[]},active=null,teacherName="DOCENTE";
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 function showErr(id,t){const e=document.getElementById(id);e.textContent=t;e.style.display="block"}function hideErr(id){document.getElementById(id).style.display="none"}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]))}
 async function login(){hideErr("loginErr");if(!client)return showErr("loginErr","Falta configurar Supabase en config.js.");try{const {error}=await client.auth.signInWithPassword({email:email.value.trim(),password:password.value});if(error)throw error;password.value="" ;showApp()}catch(e){showErr("loginErr","Correo o contraseña incorrectos, o la cuenta no está disponible.")}}
 loginBtn.onclick=login;password.onkeydown=e=>{if(e.key==="Enter")login()};
 async function showApp(){
- const {data}=await client.auth.getUser();
- if(!data.user)return;
- const prof=await client.rpc("ensure_teacher_profile");
- if(prof.error)throw prof.error;
- currentTeacher=Array.isArray(prof.data)?prof.data[0]:prof.data;
- if(currentTeacher?.is_admin){
-   await client.rpc("reclamar_datos_anteriores");
- }
- loginCard.classList.add("hidden");
- app.classList.remove("hidden");
- userBox.textContent=(currentTeacher?.display_name||data.user.email)+(currentTeacher?.is_admin?" · Administrador":"");
- await renderAll()
+const {data}=await client.auth.getUser();
+if(!data.user)return;
+loginCard.classList.add("hidden");
+app.classList.remove("hidden");
+userBox.textContent=data.user.email;
+await renderAll();
 }
 async function logout(){await client.auth.signOut();app.classList.add("hidden");loginCard.classList.remove("hidden");userBox.textContent=""}
 async function startClass(){
@@ -278,12 +313,12 @@ hideErr("modalErr");
 if(!client)return showErr("modalErr","Supabase no está configurado.");
 const {data:{session}}=await client.auth.getSession();
 if(!session)return showErr("modalErr","Tu sesión docente no está activa. Cierra sesión, vuelve a ingresar y prueba nuevamente.");
-const {data:existingActive,error:activeError}=await client.from("sessions").select("id,subject,group,starts_at,expires_at").eq("teacher_id",currentTeacher.id).eq("active",true).gt("expires_at",new Date().toISOString()).limit(1);
+const {data:existingActive,error:activeError}=await client.from("sessions").select("id,subject,group,starts_at,expires_at").eq("active",true).gt("expires_at",new Date().toISOString()).limit(1);
 if(activeError)return showErr("modalErr","No se pudo verificar si existe una clase activa: "+activeError.message);
 if(existingActive&&existingActive.length){return showErr("modalErr",`Ya existe una clase activa: ${existingActive[0].subject} · Grupo ${existingActive[0].group}. Primero debes finalizarla antes de iniciar otra.`)}
 const d=new Date(),s=subject.value,g=group.value,mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
 try{
-const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true,teacher_id:currentTeacher.id};
+const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
 const {data,error}=await client.from("sessions").insert(payload).select().single();
 if(error){
   console.error("Supabase sessions.insert:",error);
@@ -295,19 +330,57 @@ if(error){
 active=data;closeNew();await renderAll()
 }catch(e){showErr("modalErr",e.message||"No fue posible iniciar la clase.")}}
 function codeFor(s,g){let d=new Date(),p=s==="Programación II"?"2":"1";return `PRG${p}-${g}-${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getFullYear()).slice(-2)}-${Math.random().toString(36).slice(2,6).toUpperCase()}`}
-function openNew(){modal.classList.remove("hidden");updateGroups()}function closeNew(){modal.classList.add("hidden")}subject.onchange=updateGroups;function updateGroups(){group.innerHTML=groups[subject.value].map(g=>`<option>${g}</option>`).join("")}
+function openNew(){modal.classList.remove("hidden");updateGroups()}
+function closeNew(){modal.classList.add("hidden")}
+subject.onchange=updateGroups;
+function updateGroups(){
+  const list=db.groups.filter(x=>x.subject===subject.value);
+  group.innerHTML=list.map(x=>`<option value="${esc(x.group_name)}">${esc(x.group_name)}</option>`).join("");
+  if(!list.length) group.innerHTML='<option value="">No hay grupos creados para esta asignatura</option>';
+}
 function renderActive(){activeEmpty.classList.toggle("hidden",!!active);activeClass.classList.toggle("hidden",!active);if(!active)return;aAsignatura.textContent=active.subject;aGrupo.textContent=active.group;aHora.textContent=new Date(active.starts_at).toLocaleString("es-CO");aCodigo.textContent=active.code;qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(location.href.replace("docente.html","index.html").split("?")[0]+"?clase="+active.code)}
 async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;active=null;await renderAll()}catch(e){alert(e.message)}}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código copiado: "+active.code)}
-async function fetchData(){const ss=await client.from("sessions").select("*").eq("teacher_id",currentTeacher.id).order("starts_at",{ascending:false}).limit(100);const aa=await client.from("attendance").select("*").eq("teacher_id",currentTeacher.id).order("created_at",{ascending:false}).limit(5000);const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;db={sessions:ss.data||[],records:aa.data||[],students:st.data||[]};active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null}
-async function renderAll(){try{await fetchData();renderActive();renderSessions();renderStudents();renderTable();stats()}catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}}
+async function fetchData(){
+ const ss=await client.from("sessions").select("*").order("starts_at",{ascending:false}).limit(100);
+ const aa=await client.from("attendance").select("*").order("created_at",{ascending:false}).limit(5000);
+ const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);
+ const gg=await client.from("class_groups").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true});
+ const cfgs=await client.from("app_settings").select("teacher_name").eq("id",1).maybeSingle();
+ if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
+ if(gg.error)throw gg.error;if(cfgs.error)throw cfgs.error;
+ teacherName=cfgs.data?.teacher_name||"DOCENTE POR DEFINIR";
+ db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],groups:gg.data||[]};
+ active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null;
+}
+async function renderAll(){
+ try{
+   await fetchData();
+   teacherBand.textContent="Docente: "+teacherName;
+   adminTeacherName.value=teacherName;
+   refreshDynamicGroups();
+   renderAdminGroups();
+   renderActive();renderSessions();renderStudents();renderTable();stats();
+ }catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}
+}catch(e){console.error(e);alert("No se pudieron cargar los datos: "+e.message)}}
 function renderSessions(){sessions.innerHTML=db.sessions.slice(0,10).map(s=>`<div class="session"><strong>${esc(s.subject)} · Grupo ${esc(s.group)} ${s.active&&new Date(s.expires_at)>new Date()?'<span class="pill">ACTIVA</span>':''}</strong><br><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${esc(s.code)}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
-function subjectForGroup(g){return g==="H"?"Programación II":"Programación I"}
-function filteredStudents(){let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase();return db.students.filter(x=>(!g||x.group===g)&&(!s||subjectForGroup(x.group)===s)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
-function renderStudents(){let a=filteredStudents();studentsBody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="10" class="muted">No hay estudiantes registrados.</td></tr>'}
+function subjectForGroup(g){
+ const x=db.groups.find(v=>v.group_name===g);
+ if(x)return x.subject;
+ const s=db.sessions.find(v=>v.group===g);
+ return s?.subject||"";
+}
+function filteredStudents(){
+ let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase();
+ return db.students.filter(x=>(!g||x.group===g)&&(!s||subjectForGroup(x.group)===s)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))));
+}
+function renderStudents(){
+ let a=filteredStudents();
+ studentsBody.innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td><td><button class="danger" onclick="deleteStudentAdmin('${String(x.cedula).replaceAll("'","\'")}')">Borrar</button></td></tr>`).join("")||'<tr><td colspan="11" class="muted">No hay estudiantes registrados.</td></tr>';
+}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${esc(subjectForGroup(x.group))}</td><td>${esc(x.group)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td></tr>`).join("")||'<tr><td colspan="10" class="muted">No hay estudiantes registrados.</td></tr>'}
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderTable(){
- let a=filteredAttendance(), order=["I","V","A","B","H"], html="";
+ let a=filteredAttendance(), order=db.groups.map(x=>x.group_name), html="";
  const selected=filterGroup.value;
  const visible=selected?[selected]:order;
  visible.forEach(g=>{
@@ -325,50 +398,114 @@ function stats(){totalStudents.textContent=db.students.length;let today=new Date
 function downloadCSV(rows,name){let csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");let blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),aEl=document.createElement("a");aEl.href=url;aEl.download=name;aEl.click();URL.revokeObjectURL(url)}
 function exportStudentsCSV(){let a=filteredStudents();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha de registro"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"estudiantes_registrados.csv")}
 function exportCSV(){let a=filteredAttendance();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha/Hora"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.session.subject||subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"historial_asistencias.csv")}
+
+function refreshDynamicGroups(){
+  const opts=db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.subject)} · Grupo ${esc(x.group_name)}</option>`).join("");
+  const filterOpts='<option value="">Todos los grupos</option>'+db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.group_name)}</option>`).join("");
+  studentGroup.innerHTML=filterOpts;
+  filterGroup.innerHTML=filterOpts;
+  adminStudentGroup.innerHTML=opts||'<option value="">Primero crea un grupo</option>';
+
+  const subjects=[...new Set(db.groups.map(x=>x.subject))];
+  const subjectOpts='<option value="">Todas las asignaturas</option>'+subjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  studentSubject.innerHTML=subjectOpts;
+  filterSubject.innerHTML=subjectOpts;
+
+  const modalSubjects=subjects.length?subjects:["Programación I","Programación II"];
+  subject.innerHTML=modalSubjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  updateGroups();
+}
+
+function renderAdminGroups(){
+  adminGroupsList.innerHTML=db.groups.length
+    ? db.groups.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #e5e7eb"><span><b>${esc(x.subject)}</b> · Grupo ${esc(x.group_name)}</span><button class="danger" onclick="deleteGroupAdmin('${String(x.group_name).replaceAll("'","\\'")}')">Borrar grupo</button></div>`).join("")
+    : '<div class="muted">No hay grupos. Crea el primero arriba.</div>';
+}
+
+async function saveTeacherName(){
+ const n=adminTeacherName.value.trim();
+ if(!n)return alert("Escribe el nombre del profesor.");
+ const {data,error}=await client.rpc("admin_set_teacher_name",{p_name:n});
+ if(error)return alert(error.message);
+ alert(data||"Profesor actualizado.");
+ await renderAll();
+}
+
+async function createGroupAdmin(){
+ const s=adminGroupSubject.value.trim(),g=adminGroupName.value.trim();
+ if(!s||!g)return alert("Escribe la asignatura y el nombre del grupo.");
+ const {data,error}=await client.rpc("admin_create_group",{p_subject:s,p_group:g});
+ if(error)return alert(error.message);
+ adminGroupName.value="";
+ alert(data||"Grupo creado.");
+ await renderAll();
+}
+
+async function deleteGroupAdmin(g){
+ if(!confirm(`Se borrará el grupo ${g}, sus estudiantes, clases y asistencias. ¿Continuar?`))return;
+ const key=prompt(`Escribe exactamente: BORRAR ${g}`);
+ if(key!==`BORRAR ${g}`)return alert("Confirmación incorrecta.");
+ const {data,error}=await client.rpc("admin_delete_group",{p_group:g});
+ if(error)return alert(error.message);
+ alert(data||"Grupo eliminado.");
+ await renderAll();
+}
+
+async function createStudentAdmin(){
+ const payload={
+  p_name:adminStudentName.value.trim(),
+  p_cedula:adminStudentCedula.value.trim(),
+  p_celular:adminStudentCelular.value.trim(),
+  p_carrera:adminStudentCarrera.value.trim(),
+  p_semestre:adminStudentSemestre.value?Number(adminStudentSemestre.value):null,
+  p_correo:adminStudentCorreo.value.trim(),
+  p_group:adminStudentGroup.value
+ };
+ if(!payload.p_name||!payload.p_cedula||!payload.p_group)return alert("Nombre, cédula y grupo son obligatorios.");
+ const {data,error}=await client.rpc("admin_create_student",payload);
+ if(error)return alert(error.message);
+ ["adminStudentName","adminStudentCedula","adminStudentCelular","adminStudentCarrera","adminStudentCorreo"].forEach(id=>document.getElementById(id).value="");
+ adminStudentSemestre.value="";
+ alert(data||"Estudiante creado.");
+ await renderAll();
+}
+
+async function deleteStudentAdmin(ced){
+ if(!confirm(`¿Borrar al estudiante con cédula ${ced} y todas sus asistencias?`))return;
+ const {data,error}=await client.rpc("admin_delete_student",{p_cedula:String(ced)});
+ if(error)return alert(error.message);
+ alert(data||"Estudiante eliminado.");
+ await renderAll();
+}
+
+async function deleteAllStudentsAdmin(){
+ if(!confirm("Se borrarán TODOS los estudiantes y TODAS sus asistencias. Los grupos se conservarán. ¿Continuar?"))return;
+ if(prompt("Escribe exactamente: BORRAR ESTUDIANTES")!=="BORRAR ESTUDIANTES")return alert("Confirmación incorrecta.");
+ const {data,error}=await client.rpc("admin_delete_all_students");
+ if(error)return alert(error.message);
+ alert(data||"Estudiantes eliminados.");
+ await renderAll();
+}
+
+async function deleteAllGroupsAdmin(){
+ if(!confirm("Se borrarán TODOS los grupos y también estudiantes, clases y asistencias. ¿Continuar?"))return;
+ if(prompt("Escribe exactamente: BORRAR GRUPOS")!=="BORRAR GRUPOS")return alert("Confirmación incorrecta.");
+ const {data,error}=await client.rpc("admin_delete_all_groups");
+ if(error)return alert(error.message);
+ alert(data||"Grupos eliminados.");
+ await renderAll();
+}
+
+async function resetSystemAdmin(){
+ if(!confirm("REINICIO TOTAL: se borrarán grupos, estudiantes, clases, asistencias y se reiniciará el nombre visible del profesor. ¿Continuar?"))return;
+ if(prompt("Escribe exactamente: REINICIAR SISTEMA")!=="REINICIAR SISTEMA")return alert("Confirmación incorrecta.");
+ const {data,error}=await client.rpc("admin_reset_system");
+ if(error)return alert(error.message);
+ alert(data||"Sistema reiniciado.");
+ await renderAll();
+}
+
 (async()=>{if(client){const {data:{session}}=await client.auth.getSession();if(session)showApp()}})();
-</script>
-
-
-
-
-
-<script id="limpieza-multidocente-db">
-document.addEventListener('DOMContentLoaded', () => {
-  const mine = document.getElementById('btnLimpiarMisDatos');
-  const all = document.getElementById('btnLimpiarBaseTotal');
-
-  const refreshAdminButton = setInterval(()=>{
-    if(all && currentTeacher){
-      all.style.display=currentTeacher.is_admin?'inline-block':'none';
-      clearInterval(refreshAdminButton);
-    }
-  },300);
-
-  if(mine) mine.addEventListener('click', async () => {
-    if(!confirm('Se eliminarán únicamente TUS clases, matrículas y asistencias. ¿Deseas continuar?')) return;
-    const key=prompt('Escribe exactamente: LIMPIAR MIS DATOS');
-    if(key!=='LIMPIAR MIS DATOS') return alert('Confirmación incorrecta. No se eliminó nada.');
-    try{
-      const {data,error}=await client.rpc('limpiar_mis_datos_asistencia');
-      if(error) throw error;
-      alert(data||'Tus datos fueron eliminados.');
-      await renderAll();
-    }catch(e){ alert('No se pudo limpiar: '+(e.message||e)); }
-  });
-
-  if(all) all.addEventListener('click', async () => {
-    if(!currentTeacher?.is_admin) return alert('Solo el administrador general puede realizar esta acción.');
-    if(!confirm('ATENCIÓN: se eliminarán los datos de TODOS los profesores. ¿Deseas continuar?')) return;
-    const key=prompt('Escribe exactamente: LIMPIAR TODO');
-    if(key!=='LIMPIAR TODO') return alert('Confirmación incorrecta. No se eliminó nada.');
-    try{
-      const {data,error}=await client.rpc('limpiar_base_asistencia_total');
-      if(error) throw error;
-      alert(data||'Plataforma limpiada.');
-      await renderAll();
-    }catch(e){ alert('No se pudo limpiar la plataforma: '+(e.message||e)); }
-  });
-});
 </script>
 
 </body></html>
