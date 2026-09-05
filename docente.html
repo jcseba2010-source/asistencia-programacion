@@ -226,6 +226,34 @@ td{
 
 
 
+
+<section class="card" id="reportes">
+<h2>Reportes</h2>
+<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas.</p>
+<div class="filters">
+<select id="reportSubject" onchange="renderReports()"><option value="">Todas las asignaturas</option></select>
+<select id="reportGroup" onchange="renderReports()"><option value="">Todos los grupos</option></select>
+<input id="reportFrom" type="date" onchange="renderReports()">
+<input id="reportTo" type="date" onchange="renderReports()">
+<button type="button" onclick="clearReportFilters()">Limpiar filtros</button>
+<button type="button" onclick="exportReportCSV()">Descargar reporte CSV</button>
+<button type="button" onclick="printReport()">Imprimir / Guardar PDF</button>
+</div>
+<div class="stats" style="margin-top:16px">
+<div class="stat"><div class="muted">Estudiantes</div><strong id="reportStudents">0</strong></div>
+<div class="stat"><div class="muted">Clases realizadas</div><strong id="reportClasses">0</strong></div>
+<div class="stat"><div class="muted">Asistencias</div><strong id="reportAttendances">0</strong></div>
+<div class="stat"><div class="muted">Promedio asistencia</div><strong id="reportAverage">0%</strong></div>
+</div>
+<div id="reportSummary" style="margin-top:18px"></div>
+<div style="overflow:auto;margin-top:18px">
+<table>
+<thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura / Grupo</th><th>Asistencias</th><th>Clases</th><th>Ausencias</th><th>%</th></tr></thead>
+<tbody id="reportBody"></tbody>
+</table>
+</div>
+</section>
+
 <div class="card" id="administracionEditable" style="margin-top:24px;border:1px solid #d7e2ef!important;">
   <h2 style="margin-top:0">Administración del sistema</h2>
   <p class="muted">Desde aquí puedes borrar y volver a crear el profesor visible, los grupos y los estudiantes.</p>
@@ -590,6 +618,7 @@ async function renderAll(){
    renderSessions();
    renderStudents();
    renderTable();
+   renderReports();
    stats();
  }catch(e){
    console.error(e);
@@ -675,6 +704,96 @@ function exportStudentsCSV(){
 }
 function exportCSV(){let a=filteredAttendance();downloadCSV([["Estudiante","Cédula","Celular","Carrera","Semestre","Correo","Asignatura","Grupo","Fecha/Hora"],...a.map(x=>[x.name,x.cedula,x.celular,x.carrera,x.semestre,x.correo,x.session.subject||subjectForGroup(x.group),x.group,new Date(x.created_at).toLocaleString("es-CO")])],"historial_asistencias.csv")}
 
+
+function reportDateOK(value,from,to){
+ if(!value)return false;
+ const d=new Date(value);
+ if(from){const f=new Date(from+"T00:00:00");if(d<f)return false}
+ if(to){const z=new Date(to+"T23:59:59.999");if(d>z)return false}
+ return true;
+}
+function reportData(){
+ const subject=document.getElementById("reportSubject")?.value||"";
+ const group=document.getElementById("reportGroup")?.value||"";
+ const from=document.getElementById("reportFrom")?.value||"";
+ const to=document.getElementById("reportTo")?.value||"";
+ const sessions=(db.sessions||[]).filter(s=>
+   (!subject||s.subject===subject)&&(!group||s.group===group)&&
+   reportDateOK(s.starts_at||s.created_at,from,to)
+ );
+ const ids=new Set(sessions.map(s=>String(s.id)));
+ const records=(db.records||[]).filter(a=>ids.has(String(a.session_ref)));
+ const students=(db.students||[]).map(x=>({...x,_enrollments:enrollmentsForStudent(x)}))
+   .filter(x=>x._enrollments.some(e=>(!subject||e.subject===subject)&&(!group||e.group_name===group)));
+ return {subject,group,from,to,sessions,records,students};
+}
+function renderReports(){
+ const body=document.getElementById("reportBody");
+ if(!body)return;
+ const r=reportData();
+ document.getElementById("reportStudents").textContent=r.students.length;
+ document.getElementById("reportClasses").textContent=r.sessions.length;
+ document.getElementById("reportAttendances").textContent=r.records.length;
+ const possible=r.students.length*r.sessions.length;
+ document.getElementById("reportAverage").textContent=possible?Math.round((r.records.length/possible)*100)+"%":"0%";
+
+ const rows=[];
+ r.students.forEach(st=>{
+   const ens=(st._enrollments||[]).filter(e=>(!r.subject||e.subject===r.subject)&&(!r.group||e.group_name===r.group));
+   ens.forEach(en=>{
+     const classRows=r.sessions.filter(s=>s.subject===en.subject&&s.group===en.group_name);
+     const classIds=new Set(classRows.map(s=>String(s.id)));
+     const attended=new Set(r.records.filter(a=>String(a.cedula)===String(st.cedula)&&classIds.has(String(a.session_ref))).map(a=>String(a.session_ref))).size;
+     const total=classRows.length, abs=Math.max(0,total-attended), pct=total?Math.round(attended*100/total):0;
+     rows.push({name:st.name,cedula:st.cedula,subject:en.subject,group:en.group_name,attended,total,abs,pct});
+   });
+ });
+ rows.sort((a,b)=>String(a.subject).localeCompare(String(b.subject))||String(a.group).localeCompare(String(b.group))||String(a.name).localeCompare(String(b.name)));
+ body.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.subject)} · Grupo ${esc(x.group)}</td><td>${x.attended}</td><td>${x.total}</td><td>${x.abs}</td><td><b>${x.pct}%</b></td></tr>`).join(""):'<tr><td colspan="8" class="muted">No hay datos para los filtros seleccionados.</td></tr>';
+
+ const byGroup={};
+ rows.forEach(x=>{const k=x.subject+" · Grupo "+x.group;(byGroup[k]??=[]).push(x)});
+ document.getElementById("reportSummary").innerHTML=Object.entries(byGroup).map(([k,a])=>{
+   const total=a.reduce((n,x)=>n+x.total,0), attended=a.reduce((n,x)=>n+x.attended,0);
+   const pct=total?Math.round(attended*100/total):0;
+   return `<div class="session"><strong>${esc(k)}</strong><br><span class="muted">${a.length} estudiante(s) · ${attended} asistencias de ${total} posibles · ${pct}%</span></div>`;
+ }).join("")||'<div class="muted">Selecciona un período con información para generar el reporte.</div>';
+}
+function clearReportFilters(){
+ ["reportSubject","reportGroup","reportFrom","reportTo"].forEach(id=>{const e=document.getElementById(id);if(e)e.value=""});
+ renderReports();
+}
+function reportRows(){
+ const r=reportData(), rows=[];
+ r.students.forEach(st=>{
+   (st._enrollments||[]).filter(e=>(!r.subject||e.subject===r.subject)&&(!r.group||e.group_name===r.group)).forEach(en=>{
+     const cls=r.sessions.filter(s=>s.subject===en.subject&&s.group===en.group_name);
+     const ids=new Set(cls.map(s=>String(s.id)));
+     const att=new Set(r.records.filter(a=>String(a.cedula)===String(st.cedula)&&ids.has(String(a.session_ref))).map(a=>String(a.session_ref))).size;
+     rows.push([st.name,st.cedula,en.subject,en.group_name,att,cls.length,Math.max(0,cls.length-att),cls.length?Math.round(att*100/cls.length)+"%":"0%"]);
+   });
+ });
+ return rows;
+}
+function exportReportCSV(){
+ const r=reportData();
+ downloadCSV([
+  ["REPORTE DE ASISTENCIA"],
+  ["Docente",teacherName],
+  ["Asignatura",r.subject||"Todas"],
+  ["Grupo",r.group||"Todos"],
+  ["Desde",r.from||"Sin límite"],
+  ["Hasta",r.to||"Sin límite"],
+  [],
+  ["Estudiante","Cédula","Asignatura","Grupo","Asistencias","Clases","Ausencias","Porcentaje"],
+  ...reportRows()
+ ],"reporte_asistencia.csv");
+}
+function printReport(){
+ renderReports();
+ window.print();
+}
+
 function refreshDynamicGroups(){
   const opts=db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.subject)} · Grupo ${esc(x.group_name)}</option>`).join("");
   const filterOpts='<option value="">Todos los grupos</option>'+db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.group_name)}</option>`).join("");
@@ -686,6 +805,9 @@ function refreshDynamicGroups(){
   const subjectOpts='<option value="">Todas las asignaturas</option>'+subjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
   studentSubject.innerHTML=subjectOpts;
   filterSubject.innerHTML=subjectOpts;
+  const rs=document.getElementById("reportSubject"), rg=document.getElementById("reportGroup");
+  if(rs){ const old=rs.value; rs.innerHTML=subjectOpts; if([...rs.options].some(o=>o.value===old))rs.value=old; }
+  if(rg){ const old=rg.value; rg.innerHTML=filterOpts; if([...rg.options].some(o=>o.value===old))rg.value=old; }
 
   const modalSubjects=subjects.length?subjects:["Programación I","Programación II"];
   subject.innerHTML=modalSubjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");

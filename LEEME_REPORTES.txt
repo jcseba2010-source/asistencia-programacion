@@ -1,0 +1,17 @@
+MÓDULO DE REPORTES
+
+Se agregó al panel docente:
+- Filtro por asignatura.
+- Filtro por grupo.
+- Rango de fechas.
+- Total de estudiantes.
+- Clases realizadas.
+- Asistencias registradas.
+- Promedio general de asistencia.
+- Asistencias, ausencias y porcentaje por estudiante.
+- Resumen por materia/grupo.
+- Descargar reporte CSV.
+- Imprimir / Guardar PDF usando la impresión del navegador.
+
+Esta actualización no borra ni modifica datos de Supabase.
+No requiere ejecutar SQL adicional.
