@@ -468,8 +468,13 @@ async function borrarTodoConClave(){
  if(clave===null)return;
  if(!clave.trim()){ alert("Debes escribir la clave de seguridad."); return; }
 
- const confirmacion=prompt('Para confirmar, escribe exactamente: BORRAR TODO');
- if(confirmacion!=="BORRAR TODO"){
+ const confirmado=confirm(
+   "¿CONFIRMAR BORRADO TOTAL?\\n\\n"+
+   "Se eliminarán estudiantes, matrículas, asistencias, clases y grupos.\\n"+
+   "La cuenta del docente y la configuración permanecerán.\\n\\n"+
+   "Pulsa ACEPTAR para borrar todo o CANCELAR para salir."
+ );
+ if(!confirmado){
    alert("Operación cancelada.");
    return;
  }

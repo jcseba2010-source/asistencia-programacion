@@ -1,0 +1,11 @@
+BORRAR TODO - CONFIRMACIÓN SIMPLIFICADA
+
+- La clave inicial sigue siendo ADMIN2026, salvo que ya la hayas cambiado.
+- Al pulsar BORRAR TODO:
+  1. Escribe la clave de seguridad.
+  2. Aparece una ventana con ACEPTAR / CANCELAR.
+  3. ACEPTAR ejecuta el borrado.
+  4. CANCELAR no borra nada.
+
+No hace falta volver a ejecutar SQL si ya ejecutaste EJECUTAR_CLAVE_BORRADO.sql.
+No se modifica la cuenta Auth del docente.
