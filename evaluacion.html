@@ -58,7 +58,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <script>
 const cfg=window.APP_CONFIG||{};
 const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-let current=null, submitting=false, examStarted=false, lastViolationAt=0;
+let current=null, submitting=false, examStarted=false;
+let leaveIncidentOpen=false, leaveIncidentTimer=null;
 const MAX_VIOLATIONS=2;
 
 function getDeviceId(){
@@ -156,37 +157,64 @@ async function submitExam(auto=false){
 
 async function registerViolation(reason){
   if(!examStarted||!current||submitting)return;
-  const now=Date.now();
-  if(now-lastViolationAt<1500)return; // evita contar blur + visibility como dos eventos
-  lastViolationAt=now;
+
+  // Un mismo abandono puede disparar varios eventos del navegador
+  // (blur + visibilitychange + fullscreenchange). Solo cuenta UNA infracción
+  // hasta que el estudiante haya regresado de forma estable al examen.
+  if(leaveIncidentOpen)return;
+  leaveIncidentOpen=true;
+
   try{
     const {data,error}=await client.rpc('report_exam_violation',{
       p_access_token:current.access_token,
       p_device_id:deviceId,
       p_reason:reason
     });
-    if(error)return;
+    if(error){
+      leaveIncidentOpen=false;
+      return;
+    }
     const n=Number(data?.violations||0);
     document.getElementById('violations').textContent=n;
+
     if(n>=MAX_VIOLATIONS){
       alert('Se detectó una segunda salida del examen. La evaluación será enviada automáticamente.');
       await submitExam(true);
     }else{
       document.getElementById('lockscreen').style.display='flex';
     }
-  }catch(e){}
+  }catch(e){
+    leaveIncidentOpen=false;
+  }
 }
 
 async function returnToExam(){
   document.getElementById('lockscreen').style.display='none';
   await enterFullscreen();
   window.focus();
+
+  // No habilita una nueva infracción de inmediato: espera a que el alumno
+  // permanezca nuevamente en la evaluación para evitar dobles conteos.
+  clearTimeout(leaveIncidentTimer);
+  leaveIncidentTimer=setTimeout(()=>{
+    if(!document.hidden && (!document.fullscreenEnabled || document.fullscreenElement)){
+      leaveIncidentOpen=false;
+    }else if(!document.hidden){
+      // Si el navegador no permite/restaura pantalla completa, igualmente
+      // consideramos que el estudiante regresó tras unos segundos.
+      leaveIncidentOpen=false;
+    }
+  },2500);
 }
 
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden) registerViolation('CAMBIO_PESTAÑA');
 });
 window.addEventListener('blur',()=>registerViolation('PERDIDA_FOCO'));
+window.addEventListener('focus',()=>{
+  // El incidente solo se cierra mediante el botón REGRESAR AL EXAMEN,
+  // evitando que una secuencia de eventos cuente dos veces.
+});
 document.addEventListener('fullscreenchange',()=>{
   if(examStarted && !document.fullscreenElement) registerViolation('SALIDA_PANTALLA_COMPLETA');
 });

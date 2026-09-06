@@ -34,3 +34,9 @@ de la prueba y registra/penaliza infracciones.
 
 Los archivos PASO_*.sql anteriores se conservan solamente como respaldo histórico.
 Para una instalación limpia, use INSTALACION_FINAL_EVALUACIONES.sql.
+
+
+CORRECCION v2:
+- Un solo abandono ya no puede contarse dos veces por eventos simultáneos del navegador.
+- Primera salida real = advertencia.
+- Segunda salida distinta = envío automático.
