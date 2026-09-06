@@ -1,0 +1,33 @@
+BOTÓN INICIAR NUEVO SEMESTRE
+
+Instalación (solo una vez):
+1. En Supabase > SQL Editor > New query.
+2. Ejecutar completo: INSTALAR_BOTON_NUEVO_SEMESTRE.sql
+3. Subir esta nueva versión de docente.html a GitHub Pages.
+
+Uso cada semestre:
+1. Entrar al panel docente.
+2. Ir a Administración.
+3. Pulsar INICIAR NUEVO SEMESTRE.
+4. Confirmar.
+5. Escribir exactamente: NUEVO SEMESTRE.
+6. Confirmar una última vez.
+
+El botón borra:
+- estudiantes
+- matrículas
+- asistencias
+- clases
+- grupos
+- evaluaciones
+- publicaciones
+- intentos
+- calificaciones
+
+Conserva:
+- cuenta de acceso del docente
+- nombre/configuración del docente
+- tablas y estructura de Supabase
+- sistema web/GitHub Pages
+
+Después puede crear los grupos nuevos del semestre y registrar estudiantes nuevos.

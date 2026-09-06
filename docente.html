@@ -322,8 +322,15 @@ td{
 
   <hr style="border:0;border-top:1px solid #e5e7eb;margin:26px 0">
 
-  <h3 style="color:#991b1b">Borrados generales</h3>
+  <h3 style="color:#991b1b">Nuevo semestre y borrados generales</h3>
   <p class="muted">Estas acciones requieren confirmación y no se pueden deshacer.</p>
+
+  <div style="border:2px solid #b42318;background:#fff5f5;border-radius:14px;padding:16px;margin:14px 0">
+    <h3 style="margin-top:0;color:#991b1b">🎓 INICIAR NUEVO SEMESTRE</h3>
+    <p class="muted">Borra todos los datos académicos del semestre anterior: estudiantes, matrículas, asistencias, clases, grupos, evaluaciones, intentos y calificaciones. Conserva tu acceso docente, la configuración de Supabase y el sistema web.</p>
+    <button type="button" class="danger" onclick="startNewSemesterAdmin()">INICIAR NUEVO SEMESTRE</button>
+  </div>
+
   <button type="button" class="danger" onclick="deleteAllStudentsAdmin()">BORRAR TODOS LOS ESTUDIANTES</button>
   <button type="button" class="danger" onclick="deleteAllGroupsAdmin()">BORRAR TODOS LOS GRUPOS Y SUS DATOS</button>
   <button type="button" class="danger" onclick="resetSystemAdmin()">REINICIAR PROFESOR + GRUPOS + ESTUDIANTES</button>
@@ -908,6 +915,42 @@ async function deleteAllGroupsAdmin(){
  if(error)return alert(error.message);
  alert(data||"Grupos eliminados.");
  await renderAll();
+}
+
+async function startNewSemesterAdmin(){
+ if(!confirm(
+   "INICIAR NUEVO SEMESTRE\n\n"+
+   "Se borrarán TODOS los datos académicos actuales:\n"+
+   "• estudiantes y matrículas\n"+
+   "• asistencias y clases\n"+
+   "• grupos\n"+
+   "• evaluaciones publicadas\n"+
+   "• intentos y calificaciones\n\n"+
+   "Tu acceso docente y la configuración del sistema se conservarán.\n\n"+
+   "¿Deseas continuar?"
+ ))return;
+
+ const confirmation=prompt("Para confirmar escribe exactamente: NUEVO SEMESTRE");
+ if(confirmation!=="NUEVO SEMESTRE"){
+   return alert("Confirmación incorrecta. No se borró ningún dato.");
+ }
+
+ if(!confirm("ÚLTIMA CONFIRMACIÓN: esta acción no se puede deshacer. ¿Borrar el semestre actual?"))return;
+
+ const btns=[...document.querySelectorAll("button")];
+ btns.forEach(b=>b.disabled=true);
+ try{
+   const {data,error}=await client.rpc("admin_start_new_semester");
+   if(error)throw error;
+   alert(data||"Nuevo semestre iniciado. El sistema quedó limpio.");
+   await renderAll();
+   if(typeof loadExams==="function") await loadExams();
+   if(typeof loadExamResults==="function") await loadExamResults();
+ }catch(e){
+   alert("No se pudo iniciar el nuevo semestre: "+(e.message||e));
+ }finally{
+   btns.forEach(b=>b.disabled=false);
+ }
 }
 
 async function resetSystemAdmin(){
