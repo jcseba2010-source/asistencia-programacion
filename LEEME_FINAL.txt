@@ -1,0 +1,36 @@
+SISTEMA FINAL - ASISTENCIA + EVALUACIONES SEGURAS
+Programación I / Programación II
+
+VERSIÓN CONSOLIDADA VALIDADA
+
+Incluye:
+- Sistema de asistencia existente.
+- Panel docente.
+- Evaluaciones para Programación I: grupos I, V, A y B.
+- Publicación/cierre de examen por grupo.
+- Identificación del estudiante por cédula.
+- Intento ligado al primer dispositivo.
+- Orden aleatorio de preguntas.
+- Detección de cambio de pestaña / pérdida de foco / salida de pantalla completa.
+- Primera infracción: advertencia.
+- Segunda infracción: envío automático.
+- Bloqueo de copiar/pegar/menú contextual durante la prueba.
+- Calificación automática sobre 5.0.
+- 3.0 o más = APROBÓ; menos de 3.0 = PERDIÓ.
+- La nota queda visible en el panel docente.
+- Registro de infracciones de seguridad.
+
+PARA UNA INSTALACIÓN NUEVA O PARA DEJAR SUPABASE CONSOLIDADO:
+1. Supabase > SQL Editor > New query.
+2. Ejecutar completo: INSTALACION_FINAL_EVALUACIONES.sql
+3. Confirmar que aparece la Evaluación 1 con 20 preguntas.
+4. Publicar desde docente.html para el grupo correspondiente.
+5. El estudiante entra por evaluacion.html.
+
+IMPORTANTE:
+Ningún navegador web puede impedir físicamente el uso de otro celular o una foto
+de la pantalla. El sistema sí liga el intento al dispositivo, detecta salidas
+de la prueba y registra/penaliza infracciones.
+
+Los archivos PASO_*.sql anteriores se conservan solamente como respaldo histórico.
+Para una instalación limpia, use INSTALACION_FINAL_EVALUACIONES.sql.

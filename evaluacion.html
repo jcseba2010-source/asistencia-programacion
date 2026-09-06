@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Evaluaciones seguras · Programación I</title>
+<style>
+:root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--ok:#12833b;--danger:#b42318;--warn:#a15c00;--line:#dbe5ef}
+*{box-sizing:border-box}body{margin:0;font-family:Arial;background:var(--bg);color:#14213d}
+header{background:var(--navy);color:#fff;padding:22px 6%}
+main{max-width:900px;margin:25px auto;padding:0 18px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;margin:16px 0;box-shadow:0 8px 24px #07193610}
+input[type=text],input[type=number]{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px}
+button{border:0;border-radius:10px;padding:12px 16px;background:var(--blue);color:white;font-weight:800;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+.q{padding:16px 0;border-bottom:1px solid #e5e7eb}.opt{display:flex;gap:8px;align-items:flex-start;padding:8px 0}
+.ok{background:#eaf8ef;color:#126b36;padding:14px;border-radius:10px}
+.err{background:#fff0ee;color:#9f261e;padding:14px;border-radius:10px}
+.warn{background:#fff7e8;color:#7c4900;padding:14px;border-radius:10px}
+.hidden{display:none}
+.security{position:sticky;top:0;z-index:20;background:#fff4df;border:1px solid #f0d19a;border-radius:12px;padding:10px 14px;margin-bottom:15px;font-size:14px}
+.pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#e8f0ff;color:#083b85;font-weight:800;font-size:12px}
+#lockscreen{position:fixed;inset:0;background:#071936f2;color:white;display:none;align-items:center;justify-content:center;z-index:9999;text-align:center;padding:30px}
+#lockscreen .box{max-width:600px}
+</style>
+</head>
+<body>
+<header><h1>📝 Evaluación segura · Programación I</h1><div>Universidad de Pamplona</div></header>
+<main>
+<section class="card" id="access">
+<h2>Ingresar a la evaluación</h2>
+<div class="warn">
+<b>Modo seguro:</b> la evaluación queda asociada a este dispositivo. Una vez iniciada, no puede abrirse con la misma cédula en otro dispositivo. El sistema detecta cambios de pestaña o salida de pantalla completa.
+</div>
+<p>Escribe tu cédula. El sistema verificará tu grupo y si existe una evaluación publicada.</p>
+<input id="cedula" inputmode="numeric" autocomplete="off" placeholder="Número de cédula"><br><br>
+<button id="startBtn" onclick="loadExam()">INICIAR EVALUACIÓN</button>
+<div id="msg"></div>
+</section>
+
+<section class="card hidden" id="exam">
+<div class="security">🔒 <b>Modo seguro activo</b> · Intento ligado a este dispositivo · Cambios de pestaña: <span id="violations">0</span>/2</div>
+<h2 id="title"></h2>
+<p><b>Estudiante:</b> <span id="student"></span> · <b>Grupo:</b> <span id="group"></span></p>
+<p class="warn"><b>Importante:</b> si sales de esta pestaña o abandonas la pantalla completa, se registrará una infracción. En la segunda infracción, la evaluación se enviará automáticamente con las respuestas marcadas hasta ese momento.</p>
+<div id="questions"></div><br>
+<button id="submitBtn" onclick="submitExam(false)">FINALIZAR Y ENVIAR</button>
+</section>
+
+<section class="card hidden" id="done"></section>
+<p id="backLink"><a href="index.html">← Volver a asistencia</a></p>
+</main>
+
+<div id="lockscreen"><div class="box"><h1>⚠️ Evaluación en modo seguro</h1><p>Regresa a la evaluación. El cambio de pestaña o salida de pantalla completa ha sido registrado.</p><button onclick="returnToExam()">REGRESAR AL EXAMEN</button></div></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const cfg=window.APP_CONFIG||{};
+const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
+let current=null, submitting=false, examStarted=false, lastViolationAt=0;
+const MAX_VIOLATIONS=2;
+
+function getDeviceId(){
+  let id=localStorage.getItem('programacion_device_id');
+  if(!id){
+    id='dev_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);
+    localStorage.setItem('programacion_device_id',id);
+  }
+  return id;
+}
+const deviceId=getDeviceId();
+
+function message(t,ok=false){
+  const m=document.getElementById('msg');
+  m.className=ok?'ok':'err';m.textContent=t;
+}
+
+async function enterFullscreen(){
+  try{
+    if(!document.fullscreenElement && document.documentElement.requestFullscreen){
+      await document.documentElement.requestFullscreen();
+    }
+  }catch(e){}
+}
+
+async function loadExam(){
+  const c=document.getElementById('cedula').value.trim();
+  if(!c)return message('Escribe tu cédula.');
+  document.getElementById('startBtn').disabled=true;
+  try{
+    const {data,error}=await client.rpc('get_active_exam_secure',{p_cedula:c,p_device_id:deviceId});
+    if(error)throw error;
+    if(!data?.ok)return message(data?.message||'No se pudo cargar.');
+    current=data;
+    document.getElementById('title').textContent=data.title;
+    document.getElementById('student').textContent=data.student_name;
+    document.getElementById('group').textContent=data.group_name;
+    document.getElementById('questions').innerHTML=data.questions.map((x,i)=>`
+      <div class="q">
+        <b>${i+1}. ${escapeHtml(x.q)}</b>
+        ${x.o.map((o,j)=>`<label class="opt"><input type="radio" name="q${i}" value="${j}"> <span>${escapeHtml(o)}</span></label>`).join('')}
+      </div>`).join('');
+    document.getElementById('exam').classList.remove('hidden');
+    document.getElementById('access').classList.add('hidden');
+    document.getElementById('backLink').style.display='none';
+    examStarted=true;
+    await enterFullscreen();
+  }catch(e){
+    message(e.message||'No fue posible iniciar la evaluación.');
+  }finally{
+    document.getElementById('startBtn').disabled=false;
+  }
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+function collectAnswers(allowMissing){
+  const ans=[];
+  for(let i=0;i<current.questions.length;i++){
+    const x=document.querySelector(`input[name=q${i}]:checked`);
+    if(!x && !allowMissing) return {ok:false,missing:i+1};
+    ans.push(x?Number(x.value):-1);
+  }
+  return {ok:true,answers:ans};
+}
+
+async function submitExam(auto=false){
+  if(submitting||!current)return;
+  const got=collectAnswers(auto);
+  if(!got.ok)return alert(`Falta responder la pregunta ${got.missing}.`);
+  if(!auto && !confirm('¿Finalizar y enviar la evaluación? Solo tienes un intento.'))return;
+  submitting=true;
+  document.getElementById('submitBtn').disabled=true;
+  try{
+    const {data,error}=await client.rpc('submit_exam_secure',{
+      p_access_token:current.access_token,
+      p_device_id:deviceId,
+      p_answers:got.answers
+    });
+    if(error)throw error;
+    examStarted=false;
+    document.getElementById('exam').classList.add('hidden');
+    document.getElementById('lockscreen').style.display='none';
+    document.getElementById('done').classList.remove('hidden');
+    document.getElementById('done').innerHTML=`<div class="ok"><h2>✅ Evaluación enviada</h2><p>${escapeHtml(data.message)}</p><p>La calificación quedó registrada para el docente.</p></div>`;
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }catch(e){
+    alert(e.message||'No fue posible enviar la evaluación.');
+    submitting=false;
+    document.getElementById('submitBtn').disabled=false;
+  }
+}
+
+async function registerViolation(reason){
+  if(!examStarted||!current||submitting)return;
+  const now=Date.now();
+  if(now-lastViolationAt<1500)return; // evita contar blur + visibility como dos eventos
+  lastViolationAt=now;
+  try{
+    const {data,error}=await client.rpc('report_exam_violation',{
+      p_access_token:current.access_token,
+      p_device_id:deviceId,
+      p_reason:reason
+    });
+    if(error)return;
+    const n=Number(data?.violations||0);
+    document.getElementById('violations').textContent=n;
+    if(n>=MAX_VIOLATIONS){
+      alert('Se detectó una segunda salida del examen. La evaluación será enviada automáticamente.');
+      await submitExam(true);
+    }else{
+      document.getElementById('lockscreen').style.display='flex';
+    }
+  }catch(e){}
+}
+
+async function returnToExam(){
+  document.getElementById('lockscreen').style.display='none';
+  await enterFullscreen();
+  window.focus();
+}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) registerViolation('CAMBIO_PESTAÑA');
+});
+window.addEventListener('blur',()=>registerViolation('PERDIDA_FOCO'));
+document.addEventListener('fullscreenchange',()=>{
+  if(examStarted && !document.fullscreenElement) registerViolation('SALIDA_PANTALLA_COMPLETA');
+});
+window.addEventListener('beforeunload',e=>{
+  if(examStarted && !submitting){e.preventDefault();e.returnValue='';}
+});
+document.addEventListener('contextmenu',e=>{if(examStarted)e.preventDefault()});
+document.addEventListener('copy',e=>{if(examStarted)e.preventDefault()});
+document.addEventListener('cut',e=>{if(examStarted)e.preventDefault()});
+document.addEventListener('paste',e=>{if(examStarted)e.preventDefault()});
+document.addEventListener('keydown',e=>{
+  if(!examStarted)return;
+  if((e.ctrlKey||e.metaKey)&&['c','v','x','p','s','u'].includes(e.key.toLowerCase()))e.preventDefault();
+  if(e.key==='F12')e.preventDefault();
+});
+</script>
+</body>
+</html>

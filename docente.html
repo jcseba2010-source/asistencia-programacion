@@ -227,6 +227,9 @@ td{
 
 
 
+<section class="card" id="evaluaciones"><h2>📝 Evaluaciones · Programación I</h2><p class="muted">Publica el examen por grupo y consulta las calificaciones. 3.0 o más = APROBÓ; menor de 3.0 = PERDIÓ. El modo seguro liga el intento al dispositivo y registra cambios de pestaña.</p>
+<div class="filters"><select id="examSelect"></select><select id="examGroup"><option>I</option><option>V</option><option>A</option><option>B</option></select><button onclick="publishExam()">PUBLICAR PARA EL GRUPO</button><button class="secondary" onclick="closeExam()">CERRAR EVALUACIÓN</button></div>
+<div id="examPubStatus" class="muted" style="margin:12px 0"></div><h3>Calificaciones</h3><div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Grupo</th><th>Aciertos</th><th>Nota / 5.0</th><th>Estado</th><th>Seguridad</th><th>Fecha</th></tr></thead><tbody id="examResultsBody"></tbody></table></div></section>
 <section class="card" id="reportes">
 <h2>Reportes</h2>
 <p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas.</p>
@@ -592,9 +595,12 @@ async function fetchData(){
  const st=await client.from("student_registry").select("*").order("name",{ascending:true}).limit(5000);
  const en=await client.from("student_enrollments").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true}).limit(10000);
  const gg=await client.from("class_groups").select("*").order("subject",{ascending:true}).order("group_name",{ascending:true});
+ const ex=await client.from("exams").select("id,title,subject").eq("subject","Programación I").order("id");
+ const ep=await client.from("exam_publications").select("*").order("published_at",{ascending:false});
+ const er=await client.from("exam_results").select("*").order("submitted_at",{ascending:false}).limit(5000);
  const cfgs=await client.from("app_settings").select("teacher_name,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
  if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
- if(en.error)throw en.error;if(gg.error)throw gg.error;if(cfgs.error)throw cfgs.error;
+ if(en.error)throw en.error;if(gg.error)throw gg.error;if(ex.error)throw ex.error;if(ep.error)throw ep.error;if(er.error)throw er.error;if(cfgs.error)throw cfgs.error;
  teacherName=cfgs.data?.teacher_name||"DOCENTE POR DEFINIR";
  const locStatus=document.getElementById("attendanceLocationStatus");
  const radiusInput=document.getElementById("attendanceRadius");
@@ -604,7 +610,7 @@ async function fetchData(){
      ? `Ubicación del aula configurada · radio ${cfgs.data.attendance_radius_m||100} m`
      : "Ubicación del aula: aún no configurada.";
  }
- db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[]};
+ db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[],exams:ex.data||[],examPublications:ep.data||[],examResults:er.data||[]};
  active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null;
 }
 async function renderAll(){
@@ -619,12 +625,22 @@ async function renderAll(){
    renderStudents();
    renderTable();
    renderReports();
+   renderExams();
    stats();
  }catch(e){
    console.error(e);
    alert("No se pudieron cargar los datos: "+e.message);
  }
 }
+function renderExams(){
+ const sel=document.getElementById('examSelect'),body=document.getElementById('examResultsBody'),status=document.getElementById('examPubStatus'); if(!sel)return;
+ sel.innerHTML=(db.exams||[]).map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('')||'<option value="">Ejecuta EJECUTAR_MODULO_EVALUACIONES.sql</option>';
+ const activeP=(db.examPublications||[]).filter(x=>x.active); status.textContent=activeP.length?'Activas: '+activeP.map(x=>'Grupo '+x.group_name).join(', '):'No hay evaluaciones activas.';
+ body.innerHTML=(db.examResults||[]).map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.student_name)}</td><td>${esc(r.cedula)}</td><td>${esc(r.group_name)}</td><td>${r.correct_answers}/${r.total_questions}</td><td><b>${Number(r.grade).toFixed(2)}</b></td><td><b>${esc(r.status)}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${new Date(r.submitted_at).toLocaleString('es-CO')}</td></tr>`).join('')||'<tr><td colspan="9" class="muted">Aún no hay evaluaciones presentadas.</td></tr>';
+}
+async function publishExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;if(!exam_id)return alert('No hay examen disponible.');const {error}=await client.from('exam_publications').upsert({exam_id,group_name,active:true,published_at:new Date().toISOString()},{onConflict:'exam_id,group_name'});if(error)return alert(error.message);alert('Evaluación publicada para Programación I · Grupo '+group_name);await renderAll()}
+async function closeExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;const {error}=await client.from('exam_publications').update({active:false}).eq('exam_id',exam_id).eq('group_name',group_name);if(error)return alert(error.message);alert('Evaluación cerrada para el Grupo '+group_name);await renderAll()}
+
 function renderSessions(){sessions.innerHTML=db.sessions.slice(0,10).map(s=>`<div class="session"><strong>${esc(s.subject)} · Grupo ${esc(s.group)} ${s.active&&new Date(s.expires_at)>new Date()?'<span class="pill">ACTIVA</span>':''}</strong><br><span class="muted">${new Date(s.starts_at).toLocaleString("es-CO")} · ${esc(s.code)}</span></div>`).join("")||'<div class="muted">Aún no hay clases.</div>'}
 function subjectForGroup(g){
  const x=db.groups.find(v=>v.group_name===g);

@@ -1,0 +1,24 @@
+SEGURIDAD DE EVALUACIONES - PROGRAMACION I
+
+1. Primero debe estar instalado el módulo de evaluaciones:
+   EJECUTAR_MODULO_EVALUACIONES.sql
+
+2. Después ejecutar en Supabase SQL Editor:
+   EJECUTAR_SEGURIDAD_EVALUACIONES.sql
+
+Controles añadidos:
+- El intento queda ligado al primer dispositivo que lo inicia.
+- La misma cédula no puede abrir el mismo examen desde otro dispositivo.
+- Cada estudiante recibe las preguntas en un orden aleatorio.
+- Se solicita pantalla completa al comenzar.
+- Se detectan cambios de pestaña, pérdida de foco y salida de pantalla completa.
+- Primera salida: queda registrada y aparece advertencia.
+- Segunda salida: el examen se envía automáticamente; respuestas no marcadas cuentan como incorrectas.
+- Se bloquean copiar, pegar, menú contextual, imprimir y algunos atajos mientras el examen está activo.
+- El panel docente muestra las infracciones de seguridad.
+
+IMPORTANTE:
+Ninguna página web puede impedir físicamente que una persona use otro celular,
+tome una foto de la pantalla o cambie de pestaña. Este modo seguro detecta y
+penaliza cambios de pestaña y dificulta compartir el intento, pero no sustituye
+un navegador de bloqueo administrado institucionalmente.

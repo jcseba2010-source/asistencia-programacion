@@ -1,0 +1,9 @@
+MODULO DE EVALUACIONES - PROGRAMACION I
+
+1. En Supabase > SQL Editor ejecuta EJECUTAR_MODULO_EVALUACIONES.sql.
+2. Sube todos los archivos de este ZIP a GitHub Pages reemplazando los anteriores.
+3. En docente.html aparecerá Evaluaciones · Programación I.
+4. Selecciona Grupo I, V, A o B y pulsa PUBLICAR PARA EL GRUPO.
+5. El estudiante entra a evaluacion.html (también hay botón desde la página de asistencia), escribe su cédula y presenta una sola vez.
+6. La nota NO se muestra al estudiante: queda guardada para el docente.
+7. Escala: 0 a 5.0. APRUEBA >= 3.0. PIERDE < 3.0.
