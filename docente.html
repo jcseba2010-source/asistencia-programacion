@@ -219,10 +219,13 @@ td{
 <button id="loginBtn" style="width:100%">INGRESAR</button><div id="loginErr" class="error"></div>
 </section>
 <section id="app" class="hidden">
-<div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button onclick="openNew()">+ Iniciar nueva clase</button><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
+<div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
 <section class="card horario-card" id="miHorario">
-<div class="horario-head"><div><h2 style="margin:0">📅 Mi Horario</h2><p class="muted" style="margin:5px 0 0">Horario oficial · Universidad de Pamplona</p></div><span class="semestre-badge">Semestre 2026-2</span></div>
+<div class="horario-head"><div><h2 style="margin:0">📅 Mi Horario</h2><p class="muted" style="margin:5px 0 0">Horario oficial · Universidad de Pamplona</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+<span class="semestre-badge">Semestre 2026-2</span>
+<button type="button" class="secondary" onclick="openExtraordinary()">🗓️ Clase extraordinaria</button>
+</div></div>
 <div id="proximaClase" class="proxima-clase">⏳ Calculando la próxima clase...</div>
 <div class="horario-scroll"><div id="horarioGrid" class="horario-grid"></div></div>
 <p class="muted" style="margin-bottom:0">💡 Pulsa una clase para cargar automáticamente asignatura y grupo.</p></section>
@@ -1013,4 +1016,24 @@ function renderProximaClase(){const box=document.getElementById("proximaClase");
  let best=null,deltaBest=Infinity;for(const c of HORARIO_2026_2){let delta=(c.day-day)*24+(c.start-t);if(delta<0)delta+=168;if(delta<deltaBest){deltaBest=delta;best=c}}
  if(best)box.innerHTML=`⏭️ <b>Próxima clase:</b> ${HORARIO_DIAS[best.day]} · ${best.subject} · Grupo ${best.group} · 📍 ${best.room} · ${hora12(best.start)} – ${hora12(best.end)}`}
 document.addEventListener("DOMContentLoaded",()=>{renderHorarioGrafico();setInterval(renderHorarioGrafico,60000)});
-</script></body></html>
+</script>
+<script id="clase-extraordinaria-js">
+function openExtraordinary(){
+  openNew();
+  setTimeout(()=>{
+    const modal=document.getElementById("newModal");
+    if(modal){
+      const h=modal.querySelector("h2,h3");
+      if(h){
+        if(!h.dataset.originalTitle) h.dataset.originalTitle=h.textContent;
+        h.textContent="🗓️ Clase extraordinaria";
+      }
+    }
+    const s=document.getElementById("subject"), g=document.getElementById("group");
+    if(s) s.value="";
+    if(g) g.value="";
+  },50);
+}
+</script>
+
+</body></html>

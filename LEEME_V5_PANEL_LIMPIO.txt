@@ -1,0 +1,7 @@
+VERSIÓN v5 — PANEL LIMPIO
+- Se retiró visualmente el botón superior "+ Iniciar nueva clase".
+- Mi Horario es ahora el acceso normal para iniciar una clase.
+- Se conserva toda la lógica interna de openNew().
+- Se agregó "🗓️ Clase extraordinaria" junto al semestre.
+- Clase extraordinaria reutiliza el formulario existente para escoger asignatura y grupo.
+- No requiere cambios SQL.
