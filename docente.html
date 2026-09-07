@@ -182,7 +182,19 @@ td{
 }
 </style>
 
-</head>
+<style id="horario-grafico-css">
+.horario-card{margin-top:18px}.horario-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.semestre-badge{background:#e7f0ff;color:#0b57d0;border:1px solid #b9d1fb;border-radius:999px;padding:7px 12px;font-weight:800}
+.horario-scroll{overflow:auto;margin-top:14px}.horario-grid{min-width:900px;display:grid;grid-template-columns:105px repeat(5,1fr);border:1px solid #d7e2ef;border-radius:14px;overflow:hidden;background:white}
+.horario-cell{min-height:62px;padding:7px;border-right:1px solid #d7e2ef;border-bottom:1px solid #d7e2ef;font-size:12px}
+.horario-headcell{min-height:auto;background:#071936;color:white;text-align:center;font-weight:900;padding:11px 6px}
+.horario-time{background:#f6f8fb;font-weight:800;text-align:center;display:flex;align-items:center;justify-content:center}
+.horario-class{border-radius:10px;padding:7px;text-align:center;font-weight:700;box-shadow:0 2px 7px #0001;cursor:pointer;transition:.15s}
+.horario-class:hover{transform:translateY(-1px);box-shadow:0 5px 12px #0002}.horario-class.prog1{background:#e8f1ff;border:1px solid #9ec2ff;color:#073a78}
+.horario-class.prog2{background:#efe7ff;border:1px solid #c7aaf8;color:#52258c}.horario-class.current{outline:3px solid #16a34a;box-shadow:0 0 0 5px #bbf7d055}
+.horario-class .room{display:block;margin-top:3px;font-size:11px}.horario-class button{margin-top:6px;padding:6px 8px;font-size:11px;width:100%}
+.proxima-clase{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700}
+@media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style></head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
 <div class="teacher-band" id="teacherBand" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente: cargando...</div>
@@ -209,6 +221,11 @@ td{
 <section id="app" class="hidden">
 <div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button onclick="openNew()">+ Iniciar nueva clase</button><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
+<section class="card horario-card" id="miHorario">
+<div class="horario-head"><div><h2 style="margin:0">📅 Mi Horario</h2><p class="muted" style="margin:5px 0 0">Horario oficial · Universidad de Pamplona</p></div><span class="semestre-badge">Semestre 2026-2</span></div>
+<div id="proximaClase" class="proxima-clase">⏳ Calculando la próxima clase...</div>
+<div class="horario-scroll"><div id="horarioGrid" class="horario-grid"></div></div>
+<p class="muted" style="margin-bottom:0">💡 Pulsa una clase para cargar automáticamente asignatura y grupo.</p></section>
 <div class="grid"><section class="card"><h2>Clase activa</h2><div id="activeEmpty" class="muted">No hay una clase activa.</div><div id="activeClass" class="hidden">
 <p><b>Asignatura:</b> <span id="aAsignatura"></span></p><p><b>Grupo:</b> <span id="aGrupo"></span></p><p><b>Inicio:</b> <span id="aHora"></span></p><div class="bigcode" id="aCodigo"></div><div class="qrbox"><img id="qr" alt="Código QR"><p class="muted">QR dinámico: cambia cada 60 segundos. Después de escanearlo correctamente, el estudiante tiene 5 minutos para completar el registro.</p><p><b>Vigencia del QR:</b> <span id="qrCountdown">--</span> s</p><p id="qrStatus" class="muted">Generando token seguro...</p></div>
 <button onclick="copyCode()">Copiar código</button><button class="secondary" onclick="finishClass()">Finalizar clase</button></div></section>
@@ -965,4 +982,35 @@ async function resetSystemAdmin(){
 (async()=>{if(client){const {data:{session}}=await client.auth.getSession();if(session)showApp()}})();
 </script>
 
-</body></html>
+<script id="horario-grafico-js">
+const HORARIO_2026_2=[
+{day:1,start:6,end:9,subject:"Programación I",group:"A",room:"SB 105"},
+{day:2,start:6,end:9,subject:"Programación I",group:"B",room:"SB 105"},
+{day:4,start:8,end:10,subject:"Programación I",group:"B",room:"CD 204"},
+{day:3,start:9,end:12,subject:"Programación I",group:"I",room:"SB 105"},
+{day:4,start:11,end:14,subject:"Programación I",group:"V",room:"MF109 (AGRARIAS)"},
+{day:2,start:14,end:16,subject:"Programación I",group:"V",room:"SVR202"},
+{day:3,start:14,end:16,subject:"Programación I",group:"A",room:"CD 106"},
+{day:1,start:16,end:18,subject:"Programación I",group:"I",room:"CD 204"},
+{day:2,start:16,end:18,subject:"Programación II",group:"H",room:"JG 205"},
+{day:4,start:16,end:18,subject:"Programación II",group:"H",room:"SB 105"}];
+const HORARIO_DIAS=["","Lunes","Martes","Miércoles","Jueves","Viernes"];
+function hora12(h){const ap=h>=12?"p. m.":"a. m.",n=h%12||12;return `${n}:00 ${ap}`}
+function iniciarDesdeHorario(subject,group){openNew();setTimeout(()=>{const s=document.getElementById("subject"),g=document.getElementById("group");if(s){s.value=subject;s.dispatchEvent(new Event("change",{bubbles:true}))}setTimeout(()=>{if(g)g.value=group},100)},50)}
+function renderHorarioGrafico(){
+ const grid=document.getElementById("horarioGrid");if(!grid)return;
+ const now=new Date(),day=now.getDay(),t=now.getHours()+now.getMinutes()/60;
+ let out='<div class="horario-cell horario-headcell">Hora</div>';
+ for(let d=1;d<=5;d++)out+=`<div class="horario-cell horario-headcell">${HORARIO_DIAS[d]}</div>`;
+ for(let h=6;h<18;h++){out+=`<div class="horario-cell horario-time">${hora12(h)}<br>${hora12(h+1)}</div>`;
+  for(let d=1;d<=5;d++){const c=HORARIO_2026_2.find(x=>x.day===d&&h>=x.start&&h<x.end);
+   if(!c){out+='<div class="horario-cell"></div>';continue}
+   const first=h===c.start,current=d===day&&t>=c.start&&t<c.end;
+   out+=`<div class="horario-cell">${first?`<div class="horario-class ${c.subject==="Programación II"?"prog2":"prog1"} ${current?"current":""}" onclick="iniciarDesdeHorario('${c.subject}','${c.group}')"><b>${c.subject}</b><br>Grupo ${c.group}<span class="room">📍 ${c.room}</span><span class="room">🕐 ${hora12(c.start)} – ${hora12(c.end)}</span><button type="button" onclick="event.stopPropagation();iniciarDesdeHorario('${c.subject}','${c.group}')">▶ INICIAR CLASE</button></div>`:""}</div>`}}
+ grid.innerHTML=out;renderProximaClase()}
+function renderProximaClase(){const box=document.getElementById("proximaClase");if(!box)return;const now=new Date(),day=now.getDay(),t=now.getHours()+now.getMinutes()/60;
+ const actual=HORARIO_2026_2.find(c=>c.day===day&&t>=c.start&&t<c.end);if(actual){box.innerHTML=`🟢 <b>CLASE AHORA:</b> ${actual.subject} · Grupo ${actual.group} · 📍 ${actual.room} · ${hora12(actual.start)} – ${hora12(actual.end)} <button type="button" onclick="iniciarDesdeHorario('${actual.subject}','${actual.group}')">▶ INICIAR</button>`;return}
+ let best=null,deltaBest=Infinity;for(const c of HORARIO_2026_2){let delta=(c.day-day)*24+(c.start-t);if(delta<0)delta+=168;if(delta<deltaBest){deltaBest=delta;best=c}}
+ if(best)box.innerHTML=`⏭️ <b>Próxima clase:</b> ${HORARIO_DIAS[best.day]} · ${best.subject} · Grupo ${best.group} · 📍 ${best.room} · ${hora12(best.start)} – ${hora12(best.end)}`}
+document.addEventListener("DOMContentLoaded",()=>{renderHorarioGrafico();setInterval(renderHorarioGrafico,60000)});
+</script></body></html>
