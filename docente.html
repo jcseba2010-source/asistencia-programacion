@@ -252,7 +252,7 @@ td{
 <div id="examPubStatus" class="muted" style="margin:12px 0"></div><h3>Calificaciones</h3><div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Grupo</th><th>Aciertos</th><th>Nota / 5.0</th><th>Estado</th><th>Seguridad</th><th>Fecha</th></tr></thead><tbody id="examResultsBody"></tbody></table></div></section>
 <section class="card" id="reportes">
 <h2>Reportes</h2>
-<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas. Las fallas se calculan por encuentros reales; con 15% o más de ausencias la asignatura se marca como perdida por fallas.</p>
+<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas. Las fallas se calculan por encuentros reales; con 15% o más de ausencias la asignatura se marca como perdida por fallas. Protección V14: las sesiones vacías de prueba no generan ausencias.</p>
 <div class="filters">
 <select id="reportSubject" onchange="renderReports()"><option value="">Todas las asignaturas</option></select>
 <select id="reportGroup" onchange="renderReports()"><option value="">Todos los grupos</option></select>
@@ -543,7 +543,35 @@ function renderActive(){
  aCodigo.textContent=active.code+" · QR obligatorio";
  if(!qrRotateTimer)startQrRotation();
 }
-async function finishClass(){if(!active)return;try{const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);if(error)throw error;stopQrRotation();active=null;await renderAll()}catch(e){alert(e.message)}}
+async function finishClass(){
+ if(!active)return;
+ try{
+  // Protección V14: una sesión sin asistencias no debe convertirse por accidente en una clase realizada.
+  const {count,error:countError}=await client.from("attendance")
+    .select("id",{count:"exact",head:true})
+    .eq("session_ref",active.id);
+  if(countError)throw countError;
+
+  if((count||0)===0){
+   const keep=confirm("Esta sesión no tiene asistencias registradas.\n\nAceptar: conservarla como clase real sin asistentes.\nCancelar: descartarla como sesión de prueba o apertura accidental.");
+   if(!keep){
+    const {error:deleteError}=await client.from("sessions").delete().eq("id",active.id);
+    if(deleteError)throw deleteError;
+    stopQrRotation();
+    active=null;
+    await renderAll();
+    alert("Sesión sin asistencias descartada. No contará como clase realizada ni generará fallas.");
+    return;
+   }
+  }
+
+  const {error}=await client.from("sessions").update({active:false}).eq("id",active.id);
+  if(error)throw error;
+  stopQrRotation();
+  active=null;
+  await renderAll();
+ }catch(e){alert(e.message)}
+}
 function copyCode(){navigator.clipboard?.writeText(active.code);alert("Código de clase copiado. Para registrar asistencia el estudiante debe escanear el QR dinámico vigente.")}
 
 
@@ -848,12 +876,15 @@ function reportData(){
  const group=document.getElementById("reportGroup")?.value||"";
  const from=document.getElementById("reportFrom")?.value||"";
  const to=document.getElementById("reportTo")?.value||"";
+ // Protección V14: por defecto solo entran al reporte sesiones cerradas/vencidas que tengan
+ // al menos una asistencia. Esto evita que una apertura accidental o una prueba vacía genere fallas.
+ const attendanceSessionIds=new Set((db.records||[]).map(a=>String(a.session_ref)).filter(Boolean));
  const rawSessions=(db.sessions||[]).filter(s=>
-   isRealizedSession(s)&&
+   isRealizedSession(s)&&attendanceSessionIds.has(String(s.id))&&
    (!subject||sameText(s.subject,subject))&&(!group||sameText(s.group,group))&&
    reportDateOK(s.starts_at||s.created_at,from,to)
  );
- // Varias aperturas/cierres de prueba del mismo grupo en el mismo día = 1 encuentro.
+ // Varias aperturas/cierres del mismo grupo en el mismo día = 1 encuentro académico.
  const encounters=buildEncounters(rawSessions);
  const ids=new Set(rawSessions.map(s=>String(s.id)));
  const records=(db.records||[]).filter(a=>ids.has(String(a.session_ref)));
