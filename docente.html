@@ -735,9 +735,7 @@ async function deleteExamAttempt(resultId){
 Esto SOLO borra la prueba/calificación presentada. El estudiante continuará registrado y podrá presentar nuevamente la evaluación si está activa.`))return;
   const {data,error}=await client.rpc('admin_delete_exam_attempt',{p_result_id:Number(resultId)});
   if(error){
-    alert('No se pudo eliminar el intento. Ejecuta primero el archivo INSTALAR_BOTON_ELIMINAR_INTENTO_EXAMEN.sql en Supabase.
-
-Detalle: '+error.message);
+    alert('No se pudo eliminar el intento. Ejecuta primero el archivo INSTALAR_BOTON_ELIMINAR_INTENTO_EXAMEN.sql en Supabase.\n\nDetalle: '+error.message);
     return;
   }
   alert(data||'Intento de evaluación eliminado.');
