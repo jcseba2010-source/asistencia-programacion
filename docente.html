@@ -443,26 +443,51 @@ await renderAll();
  startAutoRefresh();
 }
 async function logout(){await client.auth.signOut();app.classList.add("hidden");loginCard.classList.remove("hidden");userBox.textContent=""}
+let pendingScheduleClass=null;
+function normalizeClassText(v){
+  return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toUpperCase();
+}
+function resolveDbSubject(scheduleSubject,scheduleGroup){
+  const targetSubject=normalizeClassText(scheduleSubject);
+  const targetGroup=normalizeClassText(scheduleGroup);
+  const match=(db.groups||[]).find(x=>
+    normalizeClassText(x.subject)===targetSubject &&
+    normalizeClassText(x.group_name)===targetGroup
+  );
+  return match ? match.subject : scheduleSubject;
+}
 async function startClass(){
 hideErr("modalErr");
 if(!client)return showErr("modalErr","Supabase no está configurado.");
 const {data:{session}}=await client.auth.getSession();
 if(!session)return showErr("modalErr","Tu sesión docente no está activa. Cierra sesión, vuelve a ingresar y prueba nuevamente.");
+
+const chosen=pendingScheduleClass;
+const s=chosen ? resolveDbSubject(chosen.subject,chosen.group) : subject.value;
+const g=chosen ? chosen.group : group.value;
+if(!s||!g)return showErr("modalErr","Debes seleccionar una asignatura y un grupo.");
+
 const {data:existingActive,error:activeError}=await client.from("sessions").select("id,subject,group,starts_at,expires_at").eq("active",true).gt("expires_at",new Date().toISOString()).limit(1);
 if(activeError)return showErr("modalErr","No se pudo verificar si existe una clase activa: "+activeError.message);
 if(existingActive&&existingActive.length){return showErr("modalErr",`Ya existe una clase activa: ${existingActive[0].subject} · Grupo ${existingActive[0].group}. Primero debes finalizarla antes de iniciar otra.`)}
-const d=new Date(),s=subject.value,g=group.value,mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
+const d=new Date(),mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
 try{
-const payload={subject:s,group:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
+const payload={subject:s,group:g,group_name:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
 const {data,error}=await client.from("sessions").insert(payload).select().single();
 if(error){
   console.error("Supabase sessions.insert:",error);
   let msg=error.message||"Error desconocido";
-  if(error.code==="42501") msg="Supabase rechazó la creación de la clase por permisos/RLS. Ejecuta el supabase.sql actualizado en SQL Editor.";
-  if(error.code==="42P01") msg="La tabla sessions no existe. Ejecuta el archivo supabase.sql en Supabase > SQL Editor.";
+  if(error.code==="42501") msg="Supabase rechazó la creación de la clase por permisos/RLS. Ejecuta el SQL de actualización v7 en Supabase.";
+  if(error.code==="42P01") msg="La tabla sessions no existe.";
   throw new Error(msg);
 }
-active=data;closeNew();await renderAll()
+if(normalizeClassText(data.group)!==normalizeClassText(g)){
+  throw new Error(`La clase no se creó con el grupo correcto. Esperado: ${g}; recibido: ${data.group||"sin grupo"}.`);
+}
+active=data;
+pendingScheduleClass=null;
+closeNew();
+await renderAll()
 }catch(e){showErr("modalErr",e.message||"No fue posible iniciar la clase.")}}
 function codeFor(s,g){let d=new Date(),p=s==="Programación II"?"2":"1";return `PRG${p}-${g}-${String(d.getDate()).padStart(2,"0")}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getFullYear()).slice(-2)}-${Math.random().toString(36).slice(2,6).toUpperCase()}`}
 function openNew(){modal.classList.remove("hidden");updateGroups()}
@@ -999,7 +1024,23 @@ const HORARIO_2026_2=[
 {day:4,start:16,end:18,subject:"Programación II",group:"H",room:"SB 105"}];
 const HORARIO_DIAS=["","Lunes","Martes","Miércoles","Jueves","Viernes"];
 function hora12(h){const ap=h>=12?"p. m.":"a. m.",n=h%12||12;return `${n}:00 ${ap}`}
-function iniciarDesdeHorario(subject,group){openNew();setTimeout(()=>{const s=document.getElementById("subject"),g=document.getElementById("group");if(s){s.value=subject;s.dispatchEvent(new Event("change",{bubbles:true}))}setTimeout(()=>{if(g)g.value=group},100)},50)}
+function iniciarDesdeHorario(scheduleSubject,scheduleGroup){
+ pendingScheduleClass={subject:scheduleSubject,group:scheduleGroup};
+ openNew();
+ setTimeout(()=>{
+   const s=document.getElementById("subject"),g=document.getElementById("group");
+   const actualSubject=resolveDbSubject(scheduleSubject,scheduleGroup);
+   if(s){
+     s.value=actualSubject;
+     s.dispatchEvent(new Event("change",{bubbles:true}));
+   }
+   setTimeout(()=>{
+     if(g)g.value=scheduleGroup;
+     const err=document.getElementById("modalErr");
+     if(err)err.textContent="";
+   },80);
+ },30);
+}
 function renderHorarioGrafico(){
  const grid=document.getElementById("horarioGrid");if(!grid)return;
  const now=new Date(),day=now.getDay(),t=now.getHours()+now.getMinutes()/60;
@@ -1019,6 +1060,7 @@ document.addEventListener("DOMContentLoaded",()=>{renderHorarioGrafico();setInte
 </script>
 <script id="clase-extraordinaria-js">
 function openExtraordinary(){
+  pendingScheduleClass=null;
   openNew();
   setTimeout(()=>{
     const modal=document.getElementById("newModal");

@@ -1,0 +1,22 @@
+VERSIÓN v7 — CORRECCIÓN DEFINITIVA DE GRUPOS
+
+QUÉ SE CORRIGIÓ
+1. Al iniciar una clase desde “Mi Horario”, el grupo queda bloqueado al bloque escogido.
+2. Ya no depende de que el selector visual alcance a cambiar antes de pulsar “Iniciar”.
+3. La sesión guarda simultáneamente group y group_name.
+4. Se verifica que Supabase haya creado la sesión con el grupo esperado.
+5. “Clase extraordinaria” permite seleccionar asignatura y grupo manualmente.
+6. Se conserva la evaluación de 30 preguntas de la v6.
+
+IMPORTANTE
+- Los 28 registros recuperados (14 Grupo A + 14 Grupo I) no se borran ni se alteran con este ZIP.
+- Antes de usar la v7, ejecuta ACTUALIZAR_V7_GRUPOS_SESION.sql en Supabase.
+- El SQL no borra estudiantes, matrículas ni asistencias.
+
+PRUEBA RECOMENDADA
+1. Mi Horario.
+2. Selecciona una clase, por ejemplo Grupo I.
+3. Inicia la clase.
+4. Verifica que el panel muestre Grupo I.
+5. Escanea el QR desde un celular.
+6. La página del estudiante debe mostrar Grupo I antes de registrar asistencia.
