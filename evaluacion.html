@@ -31,6 +31,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#e8f0ff;color:#083b85;font-weight:800;font-size:12px}
 #lockscreen{position:fixed;inset:0;background:#071936f2;color:white;display:none;align-items:center;justify-content:center;z-index:9999;text-align:center;padding:30px}
 #lockscreen .box{max-width:600px}
+
+.code-question{border:2px solid #8b5cf6;background:#faf7ff}
+.code-description{margin:10px 0 12px;line-height:1.55}
+.code-answer{
+  width:100%;min-height:190px;resize:vertical;box-sizing:border-box;
+  border:2px solid #c4b5fd;border-radius:12px;padding:14px;
+  font:15px/1.5 Consolas,Monaco,"Courier New",monospace;
+  background:#111827;color:#f9fafb;outline:none
+}
+.code-answer:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.15)}
+.code-rubric{margin-top:8px;font-size:13px;color:#6b7280}
+.code-badge{display:inline-block;margin-bottom:8px;padding:5px 9px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:12px;font-weight:800}
+
 </style>
 </head>
 <body>
@@ -275,19 +288,29 @@ async function loadExam(){
           <div class="visualcard"><h4>🧭 Flujo de funciones</h4><div class="flow"><span class="node">menu()</span><span class="arrow">→</span><span class="node">ventas()</span><span class="arrow">→</span><span class="node">proceso()</span><span class="arrow">→</span><span class="node">fact()</span><span class="arrow">→</span><span class="node">procfact()</span></div></div>
           <div class="visualcard"><h4>📊 Matriz de ventas</h4><div class="matrix"><div class="cell"><b>[0][0]</b>Valor Caja 1</div><div class="cell"><b>[0][1]</b>Artículos Caja 1</div><div class="cell"><b>[1][0]</b>Valor Caja 2</div><div class="cell"><b>[1][1]</b>Artículos Caja 2</div></div></div>
         </div>
-        <div class="exammeta"><b>Revisión:</b> 25 preguntas en orden aleatorio · opciones aleatorias · Calificación máxima 5.0 · Se evalúa comprensión y aplicación de las funciones del ejercicio.</div>
+        <div class="exammeta"><b>Revisión:</b> 22 preguntas de selección en orden aleatorio + preguntas 23–25 de construcción · opciones aleatorias · Calificación máxima 5.0 · Se evalúa comprensión y aplicación de las funciones del ejercicio.</div>
       `;
     }else{
       caseStudy.classList.add('hidden');
       caseStudy.innerHTML='';
     }
 
-    document.getElementById('questions').innerHTML=data.questions.map((x,i)=>`
-      <div class="q">
+    document.getElementById('questions').innerHTML=data.questions.map((x,i)=>{
+      if(x.type==='code'){
+        return `<div class="q code-question">
+          <span class="code-badge">ESCRITURA DE CÓDIGO PYTHON · 0.5 puntos</span>
+          <b>${i+1}. ${escapeHtml(x.q)}</b>
+          <div class="code-description">${escapeHtml(x.description||'')}</div>
+          <textarea class="code-answer" name="q${i}" spellcheck="false" placeholder="${escapeHtml(x.starter||'# Escriba aquí su solución')}"></textarea>
+          <div class="code-rubric"><b>Se evalúa:</b> ${escapeHtml(x.rubric||'Construcción correcta de la función.')}</div>
+        </div>`;
+      }
+      return `<div class="q">
         <b>${i+1}. ${escapeHtml(x.q)}</b>
         ${renderCodeSnippet(x.q)}
-        ${shuffleOptions(x.o).map(item=>`<label class="opt"><input type="radio" name="q${i}" value="${item.originalIndex}"> <span>${escapeHtml(item.text)}</span></label>`).join('')}
-      </div>`).join('');
+        ${shuffleOptions(x.o||[]).map(item=>`<label class="opt"><input type="radio" name="q${i}" value="${item.originalIndex}"> <span>${escapeHtml(item.text)}</span></label>`).join('')}
+      </div>`;
+    }).join('');
     document.getElementById('exam').classList.remove('hidden');
     document.getElementById('access').classList.add('hidden');
     document.getElementById('backLink').style.display='none';
@@ -307,9 +330,17 @@ function escapeHtml(s){
 function collectAnswers(allowMissing){
   const ans=[];
   for(let i=0;i<current.questions.length;i++){
-    const x=document.querySelector(`input[name=q${i}]:checked`);
-    if(!x && !allowMissing) return {ok:false,missing:i+1};
-    ans.push(x?Number(x.value):-1);
+    const q=current.questions[i];
+    if(q.type==='code'){
+      const ta=document.querySelector(`textarea[name=q${i}]`);
+      const value=(ta?.value||'').trim();
+      if(!value && !allowMissing) return {ok:false,missing:i+1};
+      ans.push(value);
+    }else{
+      const x=document.querySelector(`input[name=q${i}]:checked`);
+      if(!x && !allowMissing) return {ok:false,missing:i+1};
+      ans.push(x?Number(x.value):-1);
+    }
   }
   return {ok:true,answers:ans};
 }
@@ -332,7 +363,7 @@ async function submitExam(auto=false){
     document.getElementById('exam').classList.add('hidden');
     document.getElementById('lockscreen').style.display='none';
     document.getElementById('done').classList.remove('hidden');
-    document.getElementById('done').innerHTML=`<div class="ok"><h2>✅ Evaluación enviada</h2><p>${escapeHtml(data.message)}</p><p>La calificación quedó registrada para el docente.</p></div>`;
+    document.getElementById('done').innerHTML=`<div class="ok"><h2>✅ Evaluación enviada</h2><p>${escapeHtml(data.message)}</p><p>Las preguntas 1–22 se califican automáticamente. Las preguntas 23–25 quedan pendientes de revisión docente.</p></div>`;
     if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   }catch(e){
     alert(e.message||'No fue posible enviar la evaluación.');
