@@ -1,0 +1,11 @@
+VERSIÓN v8 — FILTROS DE ESTUDIANTES CORREGIDOS
+
+Se corrigió:
+- El filtro por Asignatura + Grupo en “Estudiantes registrados”.
+- La selección ya no se borra cuando el panel se actualiza automáticamente cada 5 segundos.
+- Al escoger una asignatura, el selector de grupo muestra solo los grupos de esa asignatura.
+- La comparación tolera diferencias de mayúsculas y acentos (por ejemplo PROGRAMACION I / Programación I).
+- Se mantienen todas las correcciones de grupos de la v7 y la evaluación de 30 preguntas.
+
+NO requiere SQL adicional.
+Después de subir los archivos a GitHub Pages, usar Ctrl+F5.

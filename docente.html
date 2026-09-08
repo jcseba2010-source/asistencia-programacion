@@ -235,7 +235,7 @@ td{
 <section class="card"><h2>Clases recientes</h2><div id="sessions"></div></section></div>
 <section class="card"><h2>Estudiantes registrados</h2><p class="muted">Cada estudiante aparece una sola vez. Una misma cédula puede estar matriculada en varias asignaturas y grupos.</p><div class="filters">
 <select id="studentGroup" onchange="renderStudents()"><option value="">Todos los grupos</option></select>
-<select id="studentSubject" onchange="renderStudents()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
+<select id="studentSubject" onchange="updateStudentGroupFilter();renderStudents()"><option value="">Todas las asignaturas</option><option>Programación I</option><option>Programación II</option></select>
 <input id="studentSearch" placeholder="Buscar nombre, cédula o correo..." oninput="renderStudents()"><button onclick="exportStudentsCSV()">Exportar estudiantes</button></div>
 <div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Asignatura</th><th>Grupo</th><th>Registrado</th><th>Acción</th></tr></thead><tbody id="studentsBody"></tbody></table></div></section>
 <section class="card"><h2>Historial de asistencias por grupos</h2><p class="muted">Las asistencias se muestran por asignatura y grupo. Un mismo estudiante puede asistir a varias materias con el mismo profesor.</p><div class="filters">
@@ -706,12 +706,15 @@ function enrollmentsForStudent(x){
  // Compatibilidad con registros antiguos mientras se ejecuta/migra la estructura.
  return x.group ? [{cedula:x.cedula,subject:subjectForGroup(x.group),group_name:x.group}] : [];
 }
+function sameText(a,b){return normalizeClassText(a)===normalizeClassText(b)}
 function filteredStudents(){
- let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase();
+ let g=studentGroup.value,s=studentSubject.value,q=studentSearch.value.toLowerCase().trim();
  return db.students
    .map(x=>({...x,_enrollments:enrollmentsForStudent(x)}))
    .filter(x=>{
-      const enrollmentOK=(!g&&!s)||x._enrollments.some(e=>(!g||e.group_name===g)&&(!s||e.subject===s));
+      const enrollmentOK=(!g&&!s)||x._enrollments.some(e=>
+        (!g||sameText(e.group_name,g))&&(!s||sameText(e.subject,s))
+      );
       const searchOK=!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q));
       return enrollmentOK&&searchOK;
    });
@@ -862,10 +865,30 @@ function printReport(){
  window.print();
 }
 
+function updateStudentGroupFilter(){
+  const subj=studentSubject?.value||"";
+  const oldGroup=studentGroup?.value||"";
+  const rows=(db.groups||[]).filter(x=>!subj||sameText(x.subject,subj));
+  const unique=[...new Set(rows.map(x=>x.group_name).filter(Boolean))];
+  studentGroup.innerHTML='<option value="">Todos los grupos</option>'+
+    unique.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join("");
+  if(unique.some(g=>sameText(g,oldGroup))){
+    const exact=unique.find(g=>sameText(g,oldGroup));
+    studentGroup.value=exact;
+  }
+}
+
 function refreshDynamicGroups(){
+  // Conservar filtros elegidos aunque el panel se actualice automáticamente cada 5 segundos.
+  const oldStudentSubject=studentSubject?.value||"";
+  const oldStudentGroup=studentGroup?.value||"";
+  const oldAttendanceSubject=filterSubject?.value||"";
+  const oldAttendanceGroup=filterGroup?.value||"";
+
   const opts=db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.subject)} · Grupo ${esc(x.group_name)}</option>`).join("");
-  const filterOpts='<option value="">Todos los grupos</option>'+db.groups.map(x=>`<option value="${esc(x.group_name)}">${esc(x.group_name)}</option>`).join("");
-  studentGroup.innerHTML=filterOpts;
+  const filterOpts='<option value="">Todos los grupos</option>'+[...new Set(db.groups.map(x=>x.group_name))]
+    .map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join("");
+
   filterGroup.innerHTML=filterOpts;
   adminStudentGroup.innerHTML=opts||'<option value="">Primero crea un grupo</option>';
 
@@ -873,15 +896,41 @@ function refreshDynamicGroups(){
   const subjectOpts='<option value="">Todas las asignaturas</option>'+subjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
   studentSubject.innerHTML=subjectOpts;
   filterSubject.innerHTML=subjectOpts;
+
+  // Restaurar asignatura elegida de estudiantes usando comparación tolerante a mayúsculas/acentos.
+  if(oldStudentSubject){
+    const match=[...studentSubject.options].find(o=>sameText(o.value,oldStudentSubject));
+    if(match) studentSubject.value=match.value;
+  }
+  updateStudentGroupFilter();
+  if(oldStudentGroup){
+    const match=[...studentGroup.options].find(o=>sameText(o.value,oldStudentGroup));
+    if(match) studentGroup.value=match.value;
+  }
+
+  // Restaurar filtros del historial.
+  if(oldAttendanceSubject){
+    const match=[...filterSubject.options].find(o=>sameText(o.value,oldAttendanceSubject));
+    if(match) filterSubject.value=match.value;
+  }
+  if(oldAttendanceGroup){
+    const match=[...filterGroup.options].find(o=>sameText(o.value,oldAttendanceGroup));
+    if(match) filterGroup.value=match.value;
+  }
+
   const rs=document.getElementById("reportSubject"), rg=document.getElementById("reportGroup");
-  if(rs){ const old=rs.value; rs.innerHTML=subjectOpts; if([...rs.options].some(o=>o.value===old))rs.value=old; }
-  if(rg){ const old=rg.value; rg.innerHTML=filterOpts; if([...rg.options].some(o=>o.value===old))rg.value=old; }
+  if(rs){ const old=rs.value; rs.innerHTML=subjectOpts; if([...rs.options].some(o=>sameText(o.value,old)))rs.value=[...rs.options].find(o=>sameText(o.value,old)).value; }
+  if(rg){ const old=rg.value; rg.innerHTML=filterOpts; if([...rg.options].some(o=>sameText(o.value,old)))rg.value=[...rg.options].find(o=>sameText(o.value,old)).value; }
 
   const modalSubjects=subjects.length?subjects:["Programación I","Programación II"];
+  const oldModalSubject=subject?.value||"";
   subject.innerHTML=modalSubjects.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  if(oldModalSubject){
+    const match=[...subject.options].find(o=>sameText(o.value,oldModalSubject));
+    if(match)subject.value=match.value;
+  }
   updateGroups();
 }
-
 function renderAdminGroups(){
   adminGroupsList.innerHTML=db.groups.length
     ? db.groups.map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #e5e7eb"><span><b>${esc(x.subject)}</b> · Grupo ${esc(x.group_name)}</span><button class="danger" onclick="deleteGroupAdmin('${String(x.group_name).replaceAll("'","\\'")}')">Borrar grupo</button></div>`).join("")
