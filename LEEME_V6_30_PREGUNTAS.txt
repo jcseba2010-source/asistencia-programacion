@@ -1,0 +1,6 @@
+VERSIÓN v6 — EVALUACIÓN DE 30 PREGUNTAS
+- Banco ampliado de 20 a 30 preguntas.
+- Se conserva el orden aleatorio por estudiante implementado por el sistema.
+- Se conserva calificación automática sobre 5.0 y seguridad existente.
+- Para una base ya instalada, ejecutar ACTUALIZAR_EVALUACION_A_30_PREGUNTAS.sql en Supabase.
+- La consulta final debe mostrar numero_preguntas = 30.
