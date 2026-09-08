@@ -252,7 +252,7 @@ td{
 <div id="examPubStatus" class="muted" style="margin:12px 0"></div><h3>Calificaciones</h3><div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Grupo</th><th>Aciertos</th><th>Nota / 5.0</th><th>Estado</th><th>Seguridad</th><th>Fecha</th></tr></thead><tbody id="examResultsBody"></tbody></table></div></section>
 <section class="card" id="reportes">
 <h2>Reportes</h2>
-<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas.</p>
+<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas. Las fallas se calculan por encuentros reales; con 15% o más de ausencias la asignatura se marca como perdida por fallas.</p>
 <div class="filters">
 <select id="reportSubject" onchange="renderReports()"><option value="">Todas las asignaturas</option></select>
 <select id="reportGroup" onchange="renderReports()"><option value="">Todos los grupos</option></select>
@@ -273,7 +273,7 @@ td{
 <div id="reportSummary" style="margin-top:18px"></div>
 <div style="overflow:auto;margin-top:18px">
 <table>
-<thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura / Grupo</th><th>Asistencias</th><th>Clases</th><th>Ausencias</th><th>%</th></tr></thead>
+<thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura / Grupo</th><th>Asistencias</th><th>Clases realizadas</th><th>Ausencias</th><th>% Asistencia</th><th>% Fallas</th><th>Estado</th></tr></thead>
 <tbody id="reportBody"></tbody>
 </table>
 </div>
@@ -810,8 +810,8 @@ function reportDateOK(value,from,to){
 // Programación II: bloques de 2 h + 2 h = 64 horas semestrales.
 function programmedClasses(subject,group){
  if(!subject||!group)return null;
- if(subject === "Programación I" || subject === "Programacion I") return 32;
- if(subject === "Programación II" || subject === "Programacion II") return 32;
+ const x=normText(subject);
+ if(x.includes("PROGRAMACION I")||x.includes("PROGRAMACION II")) return 32;
  return null;
 }
 
@@ -819,58 +819,99 @@ function isRealizedSession(s){
  if(!s)return false;
  const now=Date.now();
  const expires=s.expires_at?new Date(s.expires_at).getTime():NaN;
- // Una clase cuenta como realizada cuando fue cerrada manualmente o cuando ya terminó su vigencia.
+ // Una sesión cuenta para formar un encuentro cuando fue cerrada o ya venció.
  return s.active===false || (Number.isFinite(expires) && expires<=now);
+}
+function classDateKey(value){
+ const d=new Date(value||0);
+ if(Number.isNaN(d.getTime()))return "SIN_FECHA";
+ try{
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Bogota",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(d);
+  const o={};parts.forEach(x=>o[x.type]=x.value);
+  return `${o.year}-${o.month}-${o.day}`;
+ }catch(e){return d.toISOString().slice(0,10)}
+}
+function encounterKey(s){
+ return `${normText(s.subject)}|${normText(s.group)}|${classDateKey(s.starts_at||s.created_at)}`;
+}
+function buildEncounters(sessions){
+ const m=new Map();
+ (sessions||[]).forEach(s=>{
+  const k=encounterKey(s);
+  if(!m.has(k))m.set(k,{key:k,subject:s.subject,group:s.group,date:classDateKey(s.starts_at||s.created_at),sessions:[]});
+  m.get(k).sessions.push(s);
+ });
+ return [...m.values()];
 }
 function reportData(){
  const subject=document.getElementById("reportSubject")?.value||"";
  const group=document.getElementById("reportGroup")?.value||"";
  const from=document.getElementById("reportFrom")?.value||"";
  const to=document.getElementById("reportTo")?.value||"";
- const sessions=(db.sessions||[]).filter(s=>
+ const rawSessions=(db.sessions||[]).filter(s=>
    isRealizedSession(s)&&
-   (!subject||s.subject===subject)&&(!group||s.group===group)&&
+   (!subject||sameText(s.subject,subject))&&(!group||sameText(s.group,group))&&
    reportDateOK(s.starts_at||s.created_at,from,to)
  );
- const ids=new Set(sessions.map(s=>String(s.id)));
+ // Varias aperturas/cierres de prueba del mismo grupo en el mismo día = 1 encuentro.
+ const encounters=buildEncounters(rawSessions);
+ const ids=new Set(rawSessions.map(s=>String(s.id)));
  const records=(db.records||[]).filter(a=>ids.has(String(a.session_ref)));
  const students=(db.students||[]).map(x=>({...x,_enrollments:enrollmentsForStudent(x)}))
-   .filter(x=>x._enrollments.some(e=>(!subject||e.subject===subject)&&(!group||e.group_name===group)));
- return {subject,group,from,to,sessions,records,students};
+   .filter(x=>x._enrollments.some(e=>(!subject||sameText(e.subject,subject))&&(!group||sameText(e.group_name,group))));
+ return {subject,group,from,to,rawSessions,encounters,records,students};
+}
+function encountersForEnrollment(r,en){
+ return (r.encounters||[]).filter(c=>sameText(c.subject,en.subject)&&sameText(c.group,en.group_name));
+}
+function attendedEncounterCount(r,st,en){
+ const encs=encountersForEnrollment(r,en);
+ let count=0;
+ encs.forEach(c=>{
+  const ids=new Set(c.sessions.map(s=>String(s.id)));
+  const ok=r.records.some(a=>String(a.cedula)===String(st.cedula)&&ids.has(String(a.session_ref)));
+  if(ok)count++;
+ });
+ return count;
 }
 function renderReports(){
  const body=document.getElementById("reportBody");
  if(!body)return;
  const r=reportData();
- document.getElementById("reportStudents").textContent=r.students.length;
- document.getElementById("reportClasses").textContent=r.sessions.length;
- const planned=programmedClasses(r.subject,r.group);
- document.getElementById("reportPlanned").textContent=planned??"—";
- document.getElementById("reportPending").textContent=planned==null?"—":Math.max(0,planned-r.sessions.length);
- document.getElementById("reportAttendances").textContent=r.records.length;
- const possible=r.students.length*r.sessions.length;
- document.getElementById("reportAverage").textContent=possible?Math.round((r.records.length/possible)*100)+"%":"0%";
-
  const rows=[];
  r.students.forEach(st=>{
-   const ens=(st._enrollments||[]).filter(e=>(!r.subject||e.subject===r.subject)&&(!r.group||e.group_name===r.group));
+   const ens=(st._enrollments||[]).filter(e=>(!r.subject||sameText(e.subject,r.subject))&&(!r.group||sameText(e.group_name,r.group)));
    ens.forEach(en=>{
-     const classRows=r.sessions.filter(s=>s.subject===en.subject&&s.group===en.group_name);
-     const classIds=new Set(classRows.map(s=>String(s.id)));
-     const attended=new Set(r.records.filter(a=>String(a.cedula)===String(st.cedula)&&classIds.has(String(a.session_ref))).map(a=>String(a.session_ref))).size;
-     const total=classRows.length, abs=Math.max(0,total-attended), pct=total?Math.round(attended*100/total):0;
-     rows.push({name:st.name,cedula:st.cedula,subject:en.subject,group:en.group_name,attended,total,abs,pct});
+     const classRows=encountersForEnrollment(r,en);
+     const attended=attendedEncounterCount(r,st,en);
+     const total=classRows.length;
+     const abs=Math.max(0,total-attended);
+     const pct=total?Math.round(attended*100/total):0;
+     const failPct=total?Math.round((abs*100/total)*10)/10:0;
+     const lost=total>0&&failPct>=15;
+     rows.push({name:st.name,cedula:st.cedula,subject:en.subject,group:en.group_name,attended,total,abs,pct,failPct,lost});
    });
  });
  rows.sort((a,b)=>String(a.subject).localeCompare(String(b.subject))||String(a.group).localeCompare(String(b.group))||String(a.name).localeCompare(String(b.name)));
- body.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.subject)} · Grupo ${esc(x.group)}</td><td>${x.attended}</td><td>${x.total}</td><td>${x.abs}</td><td><b>${x.pct}%</b></td></tr>`).join(""):'<tr><td colspan="8" class="muted">No hay datos para los filtros seleccionados.</td></tr>';
+
+ document.getElementById("reportStudents").textContent=r.students.length;
+ document.getElementById("reportClasses").textContent=r.encounters.length;
+ const planned=programmedClasses(r.subject,r.group);
+ document.getElementById("reportPlanned").textContent=planned??"—";
+ document.getElementById("reportPending").textContent=planned==null?"—":Math.max(0,planned-r.encounters.length);
+ const attendedTotal=rows.reduce((n,x)=>n+x.attended,0);
+ const possible=rows.reduce((n,x)=>n+x.total,0);
+ document.getElementById("reportAttendances").textContent=attendedTotal;
+ document.getElementById("reportAverage").textContent=possible?Math.round((attendedTotal/possible)*100)+"%":"0%";
+
+ body.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.subject)} · Grupo ${esc(x.group)}</td><td>${x.attended}</td><td>${x.total}</td><td>${x.abs}</td><td><b>${x.pct}%</b></td><td><b>${x.failPct}%</b></td><td><b>${x.total===0?'SIN CLASES':(x.lost?'PERDIÓ POR FALLAS':'NORMAL')}</b></td></tr>`).join(""):'<tr><td colspan="10" class="muted">No hay datos para los filtros seleccionados.</td></tr>';
 
  const byGroup={};
  rows.forEach(x=>{const k=x.subject+" · Grupo "+x.group;(byGroup[k]??=[]).push(x)});
  document.getElementById("reportSummary").innerHTML=Object.entries(byGroup).map(([k,a])=>{
-   const total=a.reduce((n,x)=>n+x.total,0), attended=a.reduce((n,x)=>n+x.attended,0);
+   const total=a.reduce((n,x)=>n+x.total,0), attended=a.reduce((n,x)=>n+x.attended,0), lost=a.filter(x=>x.lost).length;
    const pct=total?Math.round(attended*100/total):0;
-   return `<div class="session"><strong>${esc(k)}</strong><br><span class="muted">${a.length} estudiante(s) · ${attended} asistencias de ${total} posibles · ${pct}%</span></div>`;
+   return `<div class="session"><strong>${esc(k)}</strong><br><span class="muted">${a.length} estudiante(s) · ${attended} asistencias de ${total} posibles · ${pct}% asistencia · ${lost} con 15% o más de fallas</span></div>`;
  }).join("")||'<div class="muted">Selecciona un período con información para generar el reporte.</div>';
 }
 function clearReportFilters(){
@@ -880,11 +921,13 @@ function clearReportFilters(){
 function reportRows(){
  const r=reportData(), rows=[];
  r.students.forEach(st=>{
-   (st._enrollments||[]).filter(e=>(!r.subject||e.subject===r.subject)&&(!r.group||e.group_name===r.group)).forEach(en=>{
-     const cls=r.sessions.filter(s=>s.subject===en.subject&&s.group===en.group_name);
-     const ids=new Set(cls.map(s=>String(s.id)));
-     const att=new Set(r.records.filter(a=>String(a.cedula)===String(st.cedula)&&ids.has(String(a.session_ref))).map(a=>String(a.session_ref))).size;
-     rows.push([st.name,st.cedula,en.subject,en.group_name,att,cls.length,Math.max(0,cls.length-att),cls.length?Math.round(att*100/cls.length)+"%":"0%"]);
+   (st._enrollments||[]).filter(e=>(!r.subject||sameText(e.subject,r.subject))&&(!r.group||sameText(e.group_name,r.group))).forEach(en=>{
+const encs=encountersForEnrollment(r,en);
+     const att=attendedEncounterCount(r,st,en);
+     const abs=Math.max(0,encs.length-att);
+     const pct=encs.length?Math.round(att*100/encs.length):0;
+     const failPct=encs.length?Math.round((abs*100/encs.length)*10)/10:0;
+     rows.push([st.name,st.cedula,en.subject,en.group_name,att,encs.length,abs,pct+"%",failPct+"%",encs.length?(failPct>=15?"PERDIÓ POR FALLAS":"NORMAL"):"SIN CLASES"]);
    });
  });
  return rows;
@@ -899,7 +942,7 @@ function exportReportCSV(){
   ["Desde",r.from||"Sin límite"],
   ["Hasta",r.to||"Sin límite"],
   [],
-  ["Estudiante","Cédula","Asignatura","Grupo","Asistencias","Clases","Ausencias","Porcentaje"],
+  ["Estudiante","Cédula","Asignatura","Grupo","Asistencias","Clases realizadas","Ausencias","% Asistencia","% Fallas","Estado"],
   ...reportRows()
  ],"reporte_asistencia.csv");
 }
