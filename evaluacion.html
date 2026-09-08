@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Evaluaciones seguras · Programación I</title>
+<title>Evaluaciones seguras · Programación</title>
 <style>
 :root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--ok:#12833b;--danger:#b42318;--warn:#a15c00;--line:#dbe5ef}
 *{box-sizing:border-box}body{margin:0;font-family:Arial;background:var(--bg);color:#14213d}
@@ -14,9 +14,18 @@ input[type=text],input[type=number]{width:100%;padding:13px;border:1px solid #cb
 button{border:0;border-radius:10px;padding:12px 16px;background:var(--blue);color:white;font-weight:800;cursor:pointer}
 button:disabled{opacity:.5;cursor:not-allowed}
 .q{padding:16px 0;border-bottom:1px solid #e5e7eb}.opt{display:flex;gap:8px;align-items:flex-start;padding:8px 0}
+.codebox{margin:12px 0 14px}.codebox .label{font-size:12px;font-weight:800;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}.codebox pre{margin:0;background:#111827;color:#f8fafc;padding:14px;border-radius:11px;overflow:auto;white-space:pre-wrap;line-height:1.45;font-family:Consolas,Monaco,monospace;font-size:14px}
 .ok{background:#eaf8ef;color:#126b36;padding:14px;border-radius:10px}
 .err{background:#fff0ee;color:#9f261e;padding:14px;border-radius:10px}
 .warn{background:#fff7e8;color:#7c4900;padding:14px;border-radius:10px}
+.casebox{background:#f8fbff;border:1px solid #cfdff5;border-radius:16px;padding:20px;margin:18px 0}
+.casebox h3{margin:0 0 10px;color:#071936}.casebox p{line-height:1.55}
+.mainmenu{background:#eef4ff;border-left:5px solid var(--blue);border-radius:10px;padding:14px 16px;line-height:1.8;margin:14px 0}
+.functionbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.functionchip{background:#071936;color:#fff;border-radius:999px;padding:7px 11px;font-family:Consolas,monospace;font-weight:700;font-size:13px}
+.functionlist{margin:12px 0 0;padding-left:22px}.functionlist li{margin:9px 0;line-height:1.45}
+.exammeta{background:#eef8f1;border-left:5px solid var(--ok);border-radius:10px;padding:12px 14px;margin:14px 0}
+.visualgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:18px 0}.visualcard{background:linear-gradient(180deg,#f9fbff,#eef5ff);border:1px solid #d5e4fb;border-radius:15px;padding:16px}.visualcard h4{margin:0 0 10px;color:#071936}.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.node{background:#fff;border:2px solid #bdd5fb;border-radius:10px;padding:8px 10px;font-family:Consolas,monospace;font-weight:800;color:#174a8b}.arrow{color:#0b57d0;font-weight:900}.matrix{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cell{background:#fff;border:1px solid #dbe5ef;border-radius:10px;padding:10px;text-align:center}.cell b{display:block;color:#0b57d0;font-size:18px}.q{background:#fff;border:1px solid #e3eaf3;border-radius:14px;padding:18px;margin:14px 0;box-shadow:0 5px 14px #0719360a}.opt{border:1px solid #e1e7ef;border-radius:10px;padding:10px;margin:8px 0;background:#fbfdff}.opt:hover{background:#eef5ff;border-color:#a9c7f4}
 .hidden{display:none}
 .security{position:sticky;top:0;z-index:20;background:#fff4df;border:1px solid #f0d19a;border-radius:12px;padding:10px 14px;margin-bottom:15px;font-size:14px}
 .pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#e8f0ff;color:#083b85;font-weight:800;font-size:12px}
@@ -25,7 +34,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
-<header><h1>📝 Evaluación segura · Programación I</h1><div>Universidad de Pamplona</div></header>
+<header><h1 id="mainHeader">📝 Evaluación segura · Programación</h1><div>Universidad de Pamplona</div></header>
 <main>
 <section class="card" id="access">
 <h2>Ingresar a la evaluación</h2>
@@ -39,9 +48,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </section>
 
 <section class="card hidden" id="exam">
-<div class="security">🔒 <b>Modo seguro activo</b> · Intento ligado a este dispositivo · Cambios de pestaña: <span id="violations">0</span>/2</div>
+<div class="security">🔒 <b>Modo seguro activo</b> · Intento ligado a este dispositivo · Preguntas y opciones aleatorias · Cambios de pestaña: <span id="violations">0</span>/2</div>
 <h2 id="title"></h2>
-<p><b>Estudiante:</b> <span id="student"></span> · <b>Grupo:</b> <span id="group"></span></p>
+<p><b>Estudiante:</b> <span id="student"></span> · <b>Grupo:</b> <span id="group"></span> · <b>Asignatura:</b> <span id="subject"></span></p>
+<div id="caseStudy" class="casebox hidden"></div>
 <p class="warn"><b>Importante:</b> si sales de esta pestaña o abandonas la pantalla completa, se registrará una infracción. En la segunda infracción, la evaluación se enviará automáticamente con las respuestas marcadas hasta ese momento.</p>
 <div id="questions"></div><br>
 <button id="submitBtn" onclick="submitExam(false)">FINALIZAR Y ENVIAR</button>
@@ -85,6 +95,138 @@ async function enterFullscreen(){
   }catch(e){}
 }
 
+function getCodeSnippet(question){
+  const q=String(question||'').toLowerCase();
+
+  // Fragmentos tomados del desarrollo del ejercicio Almacén La Fortuna.
+  // Se muestran como apoyo para analizar el código, no como respuesta.
+  if(q.includes('responsabilidad principal de la función menu') || q.includes('función controla el programa completo')){
+    return `def menu():
+    while(True):
+        print("""Menu ventas
+        1. Cargar Cajeros
+        2. Iniciar Ventas
+        3. Búsqueda de Información Por Cajero
+        4. Información Total de ventas de los dos Cajeros
+        5. Salida del Sistema""")
+        op=int(input("Escoja la Opcion: "))`;
+  }
+  if(q.includes('opción 1 del menú') || q.includes('cargar() solicita') || q.includes('global i') || q.includes('datos = [1010')){
+    return `datos=[]
+i=0
+
+def cargar():
+    global i
+    print("Bienvenido al Cargue de Información del Usuario")
+    while(i<=1):
+        datos.append(int(input("Digite la Cedula del Vendedor")))
+        datos.append(input("Digite la Nombre del Vendedor: "))
+        i+=1`;
+  }
+  if(q.includes('verifica principalmente la función ventas') || q.includes('función principal de ventas')){
+    return `def ventas():
+    if i==2:
+        proceso()
+    else:
+        print("El sistema ha denegado el acceso por falta de Vendedores")`;
+  }
+  if(q.includes('flujo correcto de funciones')){
+    return `# Desde el menú:
+elif op==2:
+    ventas()
+
+# ventas() llama a proceso()
+# proceso() llama a fact(op)
+# fact() llama a procfact(p)`;
+  }
+  if(q.includes('debe controlar la función proceso') || q.includes('contador m') || q.includes('información del cliente solicita proceso')){
+    return `def proceso():
+    global m
+    print("Bienvenido al Sistema de Ventas")
+    dia=0
+    while (dia<=1):
+        print("Estamos en el Dia #: ",dia+1)
+        while(m<3):
+            print("Cliente #: ",m+1)
+            ced=int(input("Digite la Cedula del Cliente: "))
+            clientes.append(ced)
+            dventa.append(ced)
+            clientes.append(input("Digite la Nombre del Cliente: "))`;
+  }
+  if(q.includes('parámetro p') || q.includes('valor recibe fact') || q.includes('corrección más apropiada') || q.includes('ventast[0][0] += v')){
+    return `def fact(p):
+    if p==1:
+        (v,c)=procfact(p)
+        print(v,c)
+        ventast[0][0]+=v
+        ventast[0][1]+=c
+    else:
+        (v,c)=procfact(p)
+        ventast[1][0]+=v
+        ventast[1][1]+=c`;
+  }
+  if(q.includes('op=2') || q.includes('op vale 2')){
+    return `op=2
+if op==1:
+    fact(op)
+else:
+    fact(op+1)`;
+  }
+  if(q.includes('procesamiento de los artículos') || q.includes('significa la instrucción (v,c)') || q.includes('representa cta') || q.includes('representa vca') || q.includes('valor ingresado como cantidad')){
+    return `def procfact(cp):
+    cta=0
+    vca=0
+    print("Bienvenidos a la Caja #: ",cp)
+    print("Atendido por el empleado: ",datos[cp-1])
+    cant=int(input("Productos… Terminar digite 0: "))
+    while(cant!=0):
+        if(cant>0):
+            cta=cta+cant
+            val=float(input("Valor Producto: "))
+            vca=vca+(cant*val)
+            cant=int(input("Productos…Terminar digite 0: "))
+        dventa.append(vca)
+        dventa.append(cta)
+        return(vca,cta)`;
+  }
+  if(q.includes('3 artículos a $5.000') || q.includes('2 artículos a $8.000')){
+    return `cta = cta + cant
+vca = vca + (cant * val)`;
+  }
+  if(q.includes('ventast=[[150000') || q.includes('ventast[0][0]') || q.includes('ventast[1][1]') || q.includes('total de artículos de las dos cajas') || q.includes('total vendido por las dos cajas')){
+    return `ventast=[[0,0],
+        [0,0]]
+
+# Fila 0: Caja 1
+# Fila 1: Caja 2
+# Columna 0: valor vendido
+# Columna 1: cantidad de artículos`;
+  }
+  if(q.includes('finalidad de mostrar_cj')){
+    return `def mostrar_cj(cd):
+    if cd==datos[0]:
+        print("Las venta de ",datos[0]," Fueron por un valor de $: ",ventast[0][0],
+              "de una cantida de articulos de ",ventast[0][1])
+    elif cd==datos[2]:
+        print("Las venta de ",datos[2]," Fueron por un valor de $: ",ventast[1][0],
+              "de una cantida de articulos de ",ventast[1][1])
+    else:
+        print("Cajero no Existe")`;
+  }
+  return '';
+}
+
+function renderCodeSnippet(question){
+  const code=getCodeSnippet(question);
+  if(!code)return '';
+  return `<div class="codebox"><div class="label">Fragmento del programa</div><pre>${escapeHtml(code)}</pre></div>`;
+}
+
+function shuffleOptions(options){
+  return options.map((text,originalIndex)=>({text,originalIndex}))
+    .sort(()=>Math.random()-0.5);
+}
+
 async function loadExam(){
   const c=document.getElementById('cedula').value.trim();
   if(!c)return message('Escribe tu cédula.');
@@ -94,13 +236,57 @@ async function loadExam(){
     if(error)throw error;
     if(!data?.ok)return message(data?.message||'No se pudo cargar.');
     current=data;
+    const isFunciones = String(data.title||'').toLowerCase().includes('revisión de conocimientos de funciones') || String(data.title||'').toLowerCase().includes('revision de conocimientos de funciones');
+    const subject = data.subject || (isFunciones ? 'Programación II' : 'Programación I');
+    document.getElementById('mainHeader').textContent='📝 Evaluación segura · '+subject;
+    document.title='Evaluación segura · '+subject;
     document.getElementById('title').textContent=data.title;
     document.getElementById('student').textContent=data.student_name;
     document.getElementById('group').textContent=data.group_name;
+    document.getElementById('subject').textContent=subject;
+
+    const caseStudy=document.getElementById('caseStudy');
+    if(isFunciones){
+      caseStudy.classList.remove('hidden');
+      caseStudy.innerHTML=`
+        <h3>Ejercicio: Almacén La Fortuna</h3>
+        <p>El almacén <b>La Fortuna</b> desea llevar control de sus ventas de las dos cajas y los dos cajeros con los que cuenta. Para ello solicita desarrollar la sistematización de sus ventas aplicando funciones, listas, matrices, ciclos, condicionales, parámetros y valores de retorno.</p>
+        <div class="mainmenu"><b>MENÚ PRINCIPAL</b><br>
+          1. Cargar Cajeros<br>
+          2. Iniciar Ventas<br>
+          3. Búsqueda de Información por Cajero<br>
+          4. Información Total de ventas de los dos Cajeros<br>
+          5. Salida del Sistema
+        </div>
+        <p><b>Funciones elaboradas que serán evaluadas:</b></p>
+        <div class="functionbar">
+          <span class="functionchip">menu()</span><span class="functionchip">cargar()</span><span class="functionchip">ventas()</span><span class="functionchip">proceso()</span><span class="functionchip">fact()</span><span class="functionchip">procfact()</span><span class="functionchip">mostrar_cj()</span>
+        </div>
+        <ol class="functionlist">
+          <li><b>menu()</b>: controla el programa general y llama las funciones según la opción seleccionada.</li>
+          <li><b>cargar()</b>: captura cédula y nombre de los dos cajeros y los almacena en <code>datos</code>.</li>
+          <li><b>ventas()</b>: valida que existan cajeros antes de llamar a <code>proceso()</code>.</li>
+          <li><b>proceso()</b>: controla los 7 días de trabajo y las 24 ventas diarias, registra clientes y selecciona la caja.</li>
+          <li><b>fact()</b>: recibe la caja, llama a <code>procfact()</code> y acumula ventas y artículos en <code>ventast</code>.</li>
+          <li><b>procfact()</b>: procesa cantidades y valores de artículos hasta ingresar 0 y retorna valor pagado y cantidad de artículos.</li>
+          <li><b>mostrar_cj()</b>: recibe la cédula del cajero y muestra ventas totales y cantidad de artículos.</li>
+        </ol>
+        <div class="visualgrid">
+          <div class="visualcard"><h4>🧭 Flujo de funciones</h4><div class="flow"><span class="node">menu()</span><span class="arrow">→</span><span class="node">ventas()</span><span class="arrow">→</span><span class="node">proceso()</span><span class="arrow">→</span><span class="node">fact()</span><span class="arrow">→</span><span class="node">procfact()</span></div></div>
+          <div class="visualcard"><h4>📊 Matriz de ventas</h4><div class="matrix"><div class="cell"><b>[0][0]</b>Valor Caja 1</div><div class="cell"><b>[0][1]</b>Artículos Caja 1</div><div class="cell"><b>[1][0]</b>Valor Caja 2</div><div class="cell"><b>[1][1]</b>Artículos Caja 2</div></div></div>
+        </div>
+        <div class="exammeta"><b>Revisión:</b> 25 preguntas en orden aleatorio · opciones aleatorias · Calificación máxima 5.0 · Se evalúa comprensión y aplicación de las funciones del ejercicio.</div>
+      `;
+    }else{
+      caseStudy.classList.add('hidden');
+      caseStudy.innerHTML='';
+    }
+
     document.getElementById('questions').innerHTML=data.questions.map((x,i)=>`
       <div class="q">
         <b>${i+1}. ${escapeHtml(x.q)}</b>
-        ${x.o.map((o,j)=>`<label class="opt"><input type="radio" name="q${i}" value="${j}"> <span>${escapeHtml(o)}</span></label>`).join('')}
+        ${renderCodeSnippet(x.q)}
+        ${shuffleOptions(x.o).map(item=>`<label class="opt"><input type="radio" name="q${i}" value="${item.originalIndex}"> <span>${escapeHtml(item.text)}</span></label>`).join('')}
       </div>`).join('');
     document.getElementById('exam').classList.remove('hidden');
     document.getElementById('access').classList.add('hidden');
