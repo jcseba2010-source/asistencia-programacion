@@ -236,6 +236,7 @@ function renderCodeSnippet(question){
 }
 
 function shuffleOptions(options){
+  options=Array.isArray(options)?options:[];
   return options.map((text,originalIndex)=>({text,originalIndex}))
     .sort(()=>Math.random()-0.5);
 }
@@ -248,6 +249,10 @@ async function loadExam(){
     const {data,error}=await client.rpc('get_active_exam_secure',{p_cedula:c,p_device_id:deviceId});
     if(error)throw error;
     if(!data?.ok)return message(data?.message||'No se pudo cargar.');
+    data.questions=Array.isArray(data.questions)?data.questions:[];
+    if(!data.questions.length){
+      throw new Error('Supabase no devolvió las preguntas. Ejecute nuevamente el SQL V19 y verifique que el banco tenga 25 preguntas.');
+    }
     current=data;
     const isFunciones = String(data.title||'').toLowerCase().includes('revisión de conocimientos de funciones') || String(data.title||'').toLowerCase().includes('revision de conocimientos de funciones');
     const subject = data.subject || (isFunciones ? 'Programación II' : 'Programación I');
@@ -295,7 +300,7 @@ async function loadExam(){
       caseStudy.innerHTML='';
     }
 
-    document.getElementById('questions').innerHTML=data.questions.map((x,i)=>{
+    document.getElementById('questions').innerHTML=(Array.isArray(data.questions)?data.questions:[]).map((x,i)=>{
       if(x.type==='code'){
         return `<div class="q code-question">
           <span class="code-badge">ESCRITURA DE CÓDIGO PYTHON · 0.5 puntos</span>
