@@ -264,7 +264,9 @@ td{
 </div>
 <div class="stats" style="margin-top:16px">
 <div class="stat"><div class="muted">Estudiantes</div><strong id="reportStudents">0</strong></div>
+<div class="stat"><div class="muted">Clases programadas</div><strong id="reportPlanned">—</strong></div>
 <div class="stat"><div class="muted">Clases realizadas</div><strong id="reportClasses">0</strong></div>
+<div class="stat"><div class="muted">Clases pendientes</div><strong id="reportPending">—</strong></div>
 <div class="stat"><div class="muted">Asistencias</div><strong id="reportAttendances">0</strong></div>
 <div class="stat"><div class="muted">Promedio asistencia</div><strong id="reportAverage">0%</strong></div>
 </div>
@@ -803,12 +805,30 @@ function reportDateOK(value,from,to){
  if(to){const z=new Date(to+"T23:59:59.999");if(d>z)return false}
  return true;
 }
+// Total de encuentros del semestre: 2 encuentros semanales x 16 semanas = 32.
+// Programación I: bloques de 3 h + 2 h = 80 horas semestrales.
+// Programación II: bloques de 2 h + 2 h = 64 horas semestrales.
+function programmedClasses(subject,group){
+ if(!subject||!group)return null;
+ if(subject === "Programación I" || subject === "Programacion I") return 32;
+ if(subject === "Programación II" || subject === "Programacion II") return 32;
+ return null;
+}
+
+function isRealizedSession(s){
+ if(!s)return false;
+ const now=Date.now();
+ const expires=s.expires_at?new Date(s.expires_at).getTime():NaN;
+ // Una clase cuenta como realizada cuando fue cerrada manualmente o cuando ya terminó su vigencia.
+ return s.active===false || (Number.isFinite(expires) && expires<=now);
+}
 function reportData(){
  const subject=document.getElementById("reportSubject")?.value||"";
  const group=document.getElementById("reportGroup")?.value||"";
  const from=document.getElementById("reportFrom")?.value||"";
  const to=document.getElementById("reportTo")?.value||"";
  const sessions=(db.sessions||[]).filter(s=>
+   isRealizedSession(s)&&
    (!subject||s.subject===subject)&&(!group||s.group===group)&&
    reportDateOK(s.starts_at||s.created_at,from,to)
  );
@@ -824,6 +844,9 @@ function renderReports(){
  const r=reportData();
  document.getElementById("reportStudents").textContent=r.students.length;
  document.getElementById("reportClasses").textContent=r.sessions.length;
+ const planned=programmedClasses(r.subject,r.group);
+ document.getElementById("reportPlanned").textContent=planned??"—";
+ document.getElementById("reportPending").textContent=planned==null?"—":Math.max(0,planned-r.sessions.length);
  document.getElementById("reportAttendances").textContent=r.records.length;
  const possible=r.students.length*r.sessions.length;
  document.getElementById("reportAverage").textContent=possible?Math.round((r.records.length/possible)*100)+"%":"0%";

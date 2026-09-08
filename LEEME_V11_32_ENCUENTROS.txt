@@ -1,0 +1,4 @@
+V11
+Programación I: 32 encuentros (80 horas) por semestre.
+Programación II: 32 encuentros (64 horas) por semestre.
+Las ausencias se calculan únicamente sobre encuentros realizados/finalizados.

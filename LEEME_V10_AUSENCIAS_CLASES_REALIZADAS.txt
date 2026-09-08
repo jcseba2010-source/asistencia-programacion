@@ -1,0 +1,14 @@
+VERSIÓN V10 — AUSENCIAS SEGÚN CLASES REALIZADAS
+
+Cambios:
+1. El reporte ya NO cuenta una clase activa como realizada.
+2. Una sesión cuenta como realizada cuando fue cerrada (active=false) o cuando ya venció su tiempo de clase.
+3. Las ausencias se calculan únicamente contra esas clases realizadas.
+4. Programación I — Grupo A queda configurado con 9 clases programadas.
+5. En Reportes, al filtrar Programación I + Grupo A, se muestran:
+   - Clases programadas: 9
+   - Clases realizadas: las realmente terminadas
+   - Clases pendientes: 9 menos las realizadas
+6. Si hasta ahora solo se ha realizado 1 clase, ningún estudiante del Grupo A puede aparecer con más de 1 ausencia.
+
+No se modificaron los filtros estables de la versión V9.
