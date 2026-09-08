@@ -1,0 +1,16 @@
+VERSIÓN v9 — FILTROS ESTABLES
+
+Corrección específica:
+- El filtro de “Estudiantes registrados” ya no depende del valor temporal de los SELECT.
+- Asignatura, grupo y búsqueda se guardan en un estado JavaScript independiente.
+- El auto-refresco cada 5 segundos puede actualizar los datos sin borrar la selección.
+- Si filtras Programación I + Grupo I, debe permanecer mostrando solo Grupo I.
+- Si filtras Programación I + Grupo A, debe permanecer mostrando solo Grupo A.
+- No requiere cambios en Supabase ni SQL.
+
+Después de subir a GitHub Pages:
+1. Ctrl + F5.
+2. Programación I.
+3. Grupo I.
+4. Espera 10–15 segundos.
+5. Deben seguir visibles únicamente los estudiantes del Grupo I.
