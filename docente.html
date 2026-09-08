@@ -810,7 +810,7 @@ function reportDateOK(value,from,to){
 // Programación II: bloques de 2 h + 2 h = 64 horas semestrales.
 function programmedClasses(subject,group){
  if(!subject||!group)return null;
- const x=normText(subject);
+ const x=normalizeClassText(subject);
  if(x.includes("PROGRAMACION I")||x.includes("PROGRAMACION II")) return 32;
  return null;
 }
@@ -832,7 +832,7 @@ function classDateKey(value){
  }catch(e){return d.toISOString().slice(0,10)}
 }
 function encounterKey(s){
- return `${normText(s.subject)}|${normText(s.group)}|${classDateKey(s.starts_at||s.created_at)}`;
+ return `${normalizeClassText(s.subject)}|${normalizeClassText(s.group)}|${classDateKey(s.starts_at||s.created_at)}`;
 }
 function buildEncounters(sessions){
  const m=new Map();
