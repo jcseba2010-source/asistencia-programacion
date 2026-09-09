@@ -194,7 +194,8 @@ td{
 .horario-class.prog2{background:#efe7ff;border:1px solid #c7aaf8;color:#52258c}.horario-class.current{outline:3px solid #16a34a;box-shadow:0 0 0 5px #bbf7d055}
 .horario-class .room{display:block;margin-top:3px;font-size:11px}.horario-class button{margin-top:6px;padding:6px 8px;font-size:11px;width:100%}
 .proxima-clase{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700}
-@media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style></head>
+@media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style><!-- VERSION PANEL ACUMULADO CORREGIDO 2026-09-09 -->
+</head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
 <div class="teacher-band" id="teacherBand" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente: cargando...</div>
@@ -860,8 +861,8 @@ function renderStudents(){
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 let firmaActual=null;
 function renderTable(){
-  const attendanceTable = document.getElementById("attendanceGroups");
-  if(!attendanceTable){
+  const attendanceGroupsEl = document.getElementById("attendanceGroups");
+  if(!attendanceGroupsEl){
     console.error("No se encontró el contenedor #attendanceGroups");
     return;
   }
@@ -967,7 +968,7 @@ function renderTable(){
     html+=`</tbody></table></div></div>`;
   });
 
-  attendanceTable.innerHTML=html||`<div class="card muted">Seleccione un grupo.</div>`;
+  attendanceGroupsEl.innerHTML=html||`<div class="card muted">Seleccione un grupo.</div>`;
 }
 function verFirmaPorId(id){
  const x=(db.records||[]).find(r=>Number(r.id)===Number(id));
