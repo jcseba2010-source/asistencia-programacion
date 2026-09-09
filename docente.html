@@ -196,6 +196,7 @@ td{
 .proxima-clase{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700}
 @media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style><!-- VERSION PANEL ACUMULADO CORREGIDO 2026-09-09 -->
 <!-- HISTORIAL CON CLASE NUMERADA -->
+<!-- VERSION SOLO CLASES REALES -->
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
@@ -915,7 +916,9 @@ function renderTable(){
     const groupSessions=(db.sessions||[]).filter(s=>{
       const sg=String(s.group_name||s.group||"");
       const ss=String(s.subject||"");
-      return sg===String(g) && (!ss || ss===String(subject));
+      return sg===String(g) &&
+             (!ss || ss===String(subject)) &&
+             s.es_clase_real !== false;
     });
     const sessionIds=new Set(groupSessions.map(s=>String(s.id)));
     const clasesRealizadas=sessionIds.size;
@@ -938,7 +941,10 @@ function renderTable(){
     }
 
     students.forEach((st,idx)=>{
-      const regs=groupRecords.filter(r=>String(r.cedula||"").trim()===st.cedula);
+      const regs=groupRecords.filter(r=>
+        String(r.cedula||"").trim()===st.cedula &&
+        sessionIds.has(String(r.session_ref||""))
+      );
       const uniqueSessions=new Set(
         regs.map(r=>String(r.session_ref||"")).filter(Boolean)
       );
@@ -1471,9 +1477,20 @@ let historialActual={cedula:null,group:null,subject:null};
 function verHistorialEstudiante(cedula,group,subject){
   historialActual={cedula:String(cedula),group:String(group),subject:String(subject)};
 
+  const sesionesRealesIds=new Set(
+    (db.sessions||[]).filter(s=>{
+      const sg=String(s.group_name||s.group||"");
+      const ss=String(s.subject||"");
+      return sg===String(group) &&
+             (!ss || ss===String(subject)) &&
+             s.es_clase_real !== false;
+    }).map(s=>String(s.id))
+  );
+
   const regs=(db.records||[]).filter(r=>
     String(r.cedula||"").trim()===String(cedula).trim() &&
-    String(r.group||r.grupo||"")===String(group)
+    String(r.group||r.grupo||"")===String(group) &&
+    sesionesRealesIds.has(String(r.session_ref))
   ).sort((a,b)=>new Date(a.created_at||a.hora||0)-new Date(b.created_at||b.hora||0));
 
   const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===String(cedula).trim())||{};
@@ -1485,7 +1502,9 @@ function verHistorialEstudiante(cedula,group,subject){
   const sesionesGrupo=(db.sessions||[]).filter(s=>{
     const sg=String(s.group_name||s.group||"");
     const ss=String(s.subject||"");
-    return sg===String(group) && (!ss || ss===String(subject));
+    return sg===String(group) &&
+           (!ss || ss===String(subject)) &&
+           s.es_clase_real !== false;
   }).sort((a,b)=>new Date(a.starts_at||a.created_at||0)-new Date(b.starts_at||b.created_at||0));
 
   const numeroPorSesion=new Map();
