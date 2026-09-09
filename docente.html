@@ -198,6 +198,7 @@ td{
 <!-- HISTORIAL CON CLASE NUMERADA -->
 <!-- VERSION SOLO CLASES REALES -->
 <!-- REGLA ESTADO: 0-1 BIEN, 2 EN RIESGO, 3+ PIERDE -->
+<!-- NOTAS: (aciertos / total) * 5; aprueba >= 3.0 -->
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
@@ -749,7 +750,13 @@ function renderExams(){
  const sel=document.getElementById('examSelect'),body=document.getElementById('examResultsBody'),status=document.getElementById('examPubStatus'); if(!sel)return;
  sel.innerHTML=(db.exams||[]).map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('')||'<option value="">Ejecuta EJECUTAR_MODULO_EVALUACIONES.sql</option>';
  const activeP=(db.examPublications||[]).filter(x=>x.active); status.textContent=activeP.length?'Activas: '+activeP.map(x=>'Grupo '+x.group_name).join(', '):'No hay evaluaciones activas.';
- body.innerHTML=(db.examResults||[]).map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.student_name)}</td><td>${esc(r.cedula)}</td><td>${esc(r.group_name)}</td><td>${r.correct_answers}/${r.total_questions}</td><td><b>${Number(r.grade).toFixed(2)}</b></td><td><b>${esc(r.status)}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${new Date(r.submitted_at).toLocaleString('es-CO')}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`).join('')||'<tr><td colspan="10" class="muted">Aún no hay evaluaciones presentadas.</td></tr>';
+ body.innerHTML=(db.examResults||[]).map((r,i)=>{
+   const aciertos=Number(r.correct_answers||0);
+   const total=Number(r.total_questions||0);
+   const nota=total>0 ? (aciertos/total)*5 : 0;
+   const estadoNota=nota>=3 ? 'APROBÓ' : 'PERDIÓ';
+   return `<tr><td>${i+1}</td><td>${esc(r.student_name)}</td><td>${esc(r.cedula)}</td><td>${esc(r.group_name)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${estadoNota}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${new Date(r.submitted_at).toLocaleString('es-CO')}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
+ }).join('')||'<tr><td colspan="10" class="muted">Aún no hay evaluaciones presentadas.</td></tr>';
  const attemptBody=document.getElementById('examAttemptsBody');
  if(attemptBody){
    attemptBody.innerHTML=(db.examAttempts||[]).map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.student_name||'—')}</td><td>${esc(a.cedula)}</td><td>${esc(a.subject||'—')}</td><td>${esc(a.group_name)}</td><td><b>${a.active?'ABIERTO':'CERRADO'}</b></td><td>${Number(a.security_violations||0)}</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">No hay intentos de evaluación registrados.</td></tr>';
