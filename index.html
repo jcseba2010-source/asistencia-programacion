@@ -13,6 +13,8 @@ label{display:block;font-weight:700;font-size:13px;margin:13px 0 6px}input,selec
 button{border:0;border-radius:9px;padding:13px 16px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;margin-top:16px;width:100%}.secondary{background:#fff;color:var(--text);border:1px solid var(--line)}
 .notice{padding:13px;border-radius:10px;background:#eef6ff;margin-top:15px;font-size:13px}.success,.error{display:none;padding:14px;border-radius:10px;margin-top:15px;font-weight:700}.success{background:#eaf9ef;color:var(--ok)}.error{background:#fdecec;color:var(--danger)}
 footer{text-align:center;color:var(--muted);padding:30px}@media(max-width:800px){header{display:block}nav{margin-top:12px}nav a{margin:0 15px 0 0}.grid{grid-template-columns:1fr}}
+
+.signature-box{display:block!important;visibility:visible!important;opacity:1!important;margin-top:16px;padding:14px;border:3px solid #0b57d0;border-radius:12px;background:#eef6ff}.signature-box canvas{width:100%;height:180px;background:#fff;border:2px dashed #94a3b8;border-radius:10px;touch-action:none;display:block}.signature-actions{display:flex;gap:8px}.signature-actions button{margin-top:8px}.signature-help{font-size:12px;color:var(--muted);margin:6px 0}
 </style>
 
 
@@ -173,7 +175,7 @@ footer{
 <p><b>Vigencia:</b> <span id="vigencia"></span></p>
 </div>
 </section>
-<section class="card"><h2>Registrar asistencia</h2><p class="muted">Si ya estás registrado, escribe únicamente tu cédula. Si es tu primera vez, el sistema te pedirá los demás datos.</p>
+<section class="card"><div style="background:#eaf9ef;color:#12833b;font-weight:900;padding:10px;border-radius:9px;margin-bottom:12px;text-align:center">✓ VERSIÓN FIRMA ACTIVA</div><h2>Registrar asistencia</h2><p class="muted">Si ya estás registrado, escribe únicamente tu cédula. Si es tu primera vez, el sistema te pedirá los demás datos.</p>
 <form id="form">
 <label>Número de cédula</label><input id="cedula" inputmode="numeric" required placeholder="Escribe tu cédula">
 <div id="newStudentFields" style="display:none">
@@ -185,7 +187,8 @@ footer{
 <label>Correo electrónico</label><input id="correo" type="email">
 <label>Grupo</label><select id="grupoForm"><option value="">Selecciona la clase primero</option></select>
 </div>
-<button type="submit" id="submitAttendance">REGISTRAR ASISTENCIA</button>
+<div class="signature-box" id="signatureBox"><label>Firma del estudiante</label><p class="signature-help">Firma dentro del recuadro con el dedo o con el mouse. La firma corresponde únicamente a esta asistencia.</p><canvas id="signatureCanvas" width="700" height="220"></canvas><div class="signature-actions"><button type="button" class="secondary" id="clearSignature">LIMPIAR FIRMA</button></div></div>
+<button type="submit" id="submitAttendance">FIRMAR Y REGISTRAR ASISTENCIA</button>
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
 <section class="card" style="text-align:center"><h2>📝 Evaluaciones de Programación I</h2><p class="muted">Cuando el docente publique una evaluación para tu grupo, ingresa aquí con tu cédula. Al iniciar, el intento quedará ligado a tu dispositivo y se activará el modo seguro.</p><a href="evaluacion.html" style="display:inline-block;background:#0b57d0;color:#fff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:10px">IR A EVALUACIONES</a></section>
@@ -213,8 +216,22 @@ const el={
   correo:document.getElementById("correo"),
   ok:document.getElementById("ok"),
   err:document.getElementById("err"),
-  submitAttendance:document.getElementById("submitAttendance")
+  submitAttendance:document.getElementById("submitAttendance"),
+  signatureCanvas:document.getElementById("signatureCanvas"),
+  clearSignature:document.getElementById("clearSignature")
 };
+
+let signatureDirty=false;
+(function initSignature(){
+ const c=el.signatureCanvas,ctx=c.getContext("2d"); ctx.lineWidth=3;ctx.lineCap="round";ctx.strokeStyle="#111827";let drawing=false;
+ function pos(ev){const r=c.getBoundingClientRect(),p=ev.touches?ev.touches[0]:ev;return {x:(p.clientX-r.left)*(c.width/r.width),y:(p.clientY-r.top)*(c.height/r.height)}}
+ function start(ev){ev.preventDefault();drawing=true;signatureDirty=true;const p=pos(ev);ctx.beginPath();ctx.moveTo(p.x,p.y)}
+ function move(ev){if(!drawing)return;ev.preventDefault();const p=pos(ev);ctx.lineTo(p.x,p.y);ctx.stroke()}
+ function stop(){drawing=false}
+ c.addEventListener("pointerdown",start);c.addEventListener("pointermove",move);window.addEventListener("pointerup",stop);
+ el.clearSignature.addEventListener("click",()=>{ctx.clearRect(0,0,c.width,c.height);signatureDirty=false});
+})();
+function limpiarFirma(){const c=el.signatureCanvas;c.getContext("2d").clearRect(0,0,c.width,c.height);signatureDirty=false}
 
 async function loadPublicSettings(){
  if(!client)return;
@@ -357,6 +374,8 @@ el.form.onsubmit=async e=>{
      return msg("err","Completa todos los datos de registro.");
    }
  }
+ if(!signatureDirty)return msg("err","Debes firmar en el recuadro antes de registrar la asistencia.");
+ const firmaData=el.signatureCanvas.toDataURL("image/png");
  const record={session_ref:session.id,name:el.nombre.value.trim(),cedula:ced,celular:el.celular.value.trim(),carrera:el.carrera.value.trim(),semestre:el.semestre.value?Number(el.semestre.value):null,correo:el.correo.value.trim().toLowerCase(),group:session.group};
  let ubicacion;
  try{
@@ -365,7 +384,7 @@ el.form.onsubmit=async e=>{
    ubicacion=await obtenerUbicacionEstudiante();
  }catch(geoErr){
    setAttendanceEnabled(true);
-   el.submitAttendance.textContent="REGISTRAR ASISTENCIA";
+   el.submitAttendance.textContent="FIRMAR Y REGISTRAR ASISTENCIA";
    return msg("err",geoErr.message);
  }
  try{
@@ -392,15 +411,18 @@ el.form.onsubmit=async e=>{
     }
     throw new Error(r.message||"No fue posible registrar la asistencia.");
   }
+  const {data:firmaResp,error:firmaError}=await client.rpc("guardar_firma_asistencia",{p_session_ref:record.session_ref,p_cedula:record.cedula,p_firma:firmaData});
+  if(firmaError)throw firmaError;
+  const fr=Array.isArray(firmaResp)?firmaResp[0]:firmaResp;if(fr&&fr.ok===false)throw new Error(fr.message||"La asistencia se registró, pero no fue posible guardar la firma.");
   el.ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name||record.cedula)} · ${new Date().toLocaleTimeString("es-CO")}`;el.ok.style.display="block";
-  e.target.reset();el.newStudentFields.style.display="none";el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=false;el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  e.target.reset();limpiarFirma();el.newStudentFields.style.display="none";el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=false;el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
  }catch(err){
    let text=err.message||"No fue posible registrar la asistencia.";
    if(text.includes("duplicate key")||text.includes("23505"))text="Este estudiante ya registró asistencia en esta clase.";
    msg("err",text);
  }finally{
    setAttendanceEnabled(!!session&&qrValidated);
-   el.submitAttendance.textContent="REGISTRAR ASISTENCIA";
+   el.submitAttendance.textContent="FIRMAR Y REGISTRAR ASISTENCIA";
  }
 };
 if(initial)loadSession();
