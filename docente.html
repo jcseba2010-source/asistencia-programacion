@@ -368,6 +368,20 @@ td{
 <h2>Iniciar nueva clase</h2><label>Asignatura</label><select id="subject"><option>Programación I</option><option>Programación II</option></select>
 <label>Grupo</label><select id="group"></select><label>Duración del código</label><select id="duration"><option value="60">60 minutos</option><option value="90">90 minutos</option><option value="120">120 minutos</option></select>
 <button onclick="startClass()" style="width:100%">Generar clase y QR</button><button class="secondary" onclick="closeNew()" style="width:100%">Cancelar</button><div id="modalErr" class="error"></div><p class="muted" style="font-size:12px;margin-top:10px">Si aparece un error de permisos, ejecuta el <b>supabase.sql</b> incluido en este ZIP.</p></div></div>
+
+<div id="historialModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:9998;padding:24px;overflow:auto">
+  <div style="max-width:1050px;margin:3vh auto;background:#fff;border-radius:16px;padding:20px;color:#14213d">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div>
+        <h3 id="historialTitulo" style="margin:0">Historial del estudiante</h3>
+        <div id="historialSubtitulo" class="muted" style="margin-top:4px"></div>
+      </div>
+      <button type="button" class="secondary" onclick="cerrarHistorial()">CERRAR</button>
+    </div>
+    <div id="historialContenido" style="margin-top:16px;overflow:auto"></div>
+  </div>
+</div>
+
 <div id="firmaModal" class="hidden" style="position:fixed;inset:0;background:#0009;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:white;max-width:620px;width:100%;padding:20px;border-radius:16px"><h3 style="margin-top:0">Firma de asistencia</h3><div id="firmaDatos" class="muted" style="margin-bottom:12px"></div><img id="firmaImagen" alt="Firma del estudiante" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #cbd5e1;border-radius:10px;background:white"><button type="button" id="btnEliminarFirma" class="danger" onclick="eliminarFirmaActual()" style="width:100%;margin-top:12px">ELIMINAR FIRMA</button><button type="button" onclick="cerrarFirma()" style="width:100%;margin-top:8px">CERRAR</button></div></div>
 <script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -835,7 +849,10 @@ function renderStudents(){
         <td>${esc(subjects)}</td>
         <td>${esc(groups)}</td>
         <td>${new Date(x.created_at).toLocaleString("es-CO")}</td>
-        <td><button class="danger" data-cedula="${esc(x.cedula)}" onclick="deleteStudentAdmin(this.dataset.cedula)">Borrar</button></td>
+        <td>
+          ${studentFilterState.group?`<button class="secondary" type="button" data-cedula="${esc(x.cedula)}" data-group="${esc(studentFilterState.group)}" data-subject="${esc(studentFilterState.subject||subjectForGroup(studentFilterState.group))}" onclick="removeStudentFromGroup(this.dataset.cedula,this.dataset.group,this.dataset.subject)">QUITAR DEL GRUPO</button>`:''}
+          <button class="danger" data-cedula="${esc(x.cedula)}" onclick="deleteStudentAdmin(this.dataset.cedula)">Borrar</button>
+        </td>
       </tr>`;
       }).join("")
     : '<tr><td colspan="11" class="muted">No hay estudiantes registrados.</td></tr>';
@@ -843,22 +860,109 @@ function renderStudents(){
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 let firmaActual=null;
 function renderTable(){
- let a=filteredAttendance(), order=[...new Set(db.groups.map(x=>x.group_name).filter(Boolean))], html="";
- const selected=filterGroup.value;
- const visible=selected?[selected]:order;
- visible.forEach(g=>{
-   const rows=a.filter(x=>x.group===g);
-   const subject=subjectForGroup(g);
-   const cedulasUnicas=new Set(rows.map(x=>String(x.cedula||"").trim()).filter(Boolean));
-   const nEst=cedulasUnicas.size;
-   const nAsis=rows.length;
-   html+=`<div style="margin-top:22px"><h3 style="margin:0 0 10px">${esc(subject)} · Grupo ${esc(g)} <span class="pill">${nEst} estudiante${nEst===1?'':'s'} · ${nAsis} asistencia${nAsis===1?'':'s'}</span></h3>`;
-   if(!rows.length){html+=`<div class="muted" style="padding:12px 0">No hay asistencias registradas para este grupo.</div></div>`;return;}
-   html+=`<div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Celular</th><th>Carrera</th><th>Sem.</th><th>Correo</th><th>Fecha/hora</th><th>Firma</th></tr></thead><tbody>`;
-   html+=rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.celular)}</td><td>${esc(x.carrera)}</td><td>${esc(x.semestre)}</td><td>${esc(x.correo)}</td><td>${new Date(x.created_at).toLocaleString("es-CO")}</td><td>${x.firma?`<button type="button" onclick="verFirmaPorId(${Number(x.id)})">VER FIRMA</button>`:`<span class="muted">Sin firma</span>`}</td></tr>`).join("");
-   html+=`</tbody></table></div></div>`;
- });
- attendanceGroups.innerHTML=html||'<div class="muted">No hay asistencias registradas.</div>';
+  const selected=filterGroup.value;
+  const order=[...new Set(db.groups.map(x=>x.group_name).filter(Boolean))];
+  const visible=selected?[selected]:order;
+  let html="";
+
+  visible.forEach(g=>{
+    const subject=subjectForGroup(g);
+
+    // Matriculados del grupo: una sola fila por estudiante.
+    let matriculados=(db.enrollments||[]).filter(e=>
+      String(e.group_name||"")===String(g) &&
+      (!e.subject || String(e.subject)===String(subject))
+    );
+
+    const byCedula=new Map();
+    matriculados.forEach(e=>{
+      const ced=String(e.cedula||e.codigo||"").trim();
+      if(!ced) return;
+      const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===ced)||{};
+      if(!byCedula.has(ced)) byCedula.set(ced,{
+        cedula:ced,
+        name:st.name||st.nombres||e.name||e.nombres||"",
+        email:st.email||st.correo||e.email||e.correo||"",
+        enrollment:e
+      });
+    });
+
+    // Compatibilidad: si una matrícula no trae cédula, usar estudiantes que ya
+    // tengan registros de asistencia en ese grupo.
+    const groupRecords=(db.records||[]).filter(r=>String(r.group||r.grupo||"")===String(g));
+    groupRecords.forEach(r=>{
+      const ced=String(r.cedula||"").trim();
+      if(!ced || byCedula.has(ced)) return;
+      const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===ced)||{};
+      byCedula.set(ced,{
+        cedula:ced,
+        name:st.name||st.nombres||r.name||"",
+        email:st.email||st.correo||r.correo||"",
+        enrollment:null
+      });
+    });
+
+    const students=[...byCedula.values()].sort((a,b)=>(a.name||"").localeCompare(b.name||"","es"));
+
+    // Clases realmente realizadas para este grupo/asignatura.
+    const groupSessions=(db.sessions||[]).filter(s=>{
+      const sg=String(s.group_name||s.group||"");
+      const ss=String(s.subject||"");
+      return sg===String(g) && (!ss || ss===String(subject));
+    });
+    const sessionIds=new Set(groupSessions.map(s=>String(s.id)));
+    const clasesRealizadas=sessionIds.size;
+
+    html+=`<div class="card" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 style="margin:0">${esc(subject)} · Grupo ${esc(g)}</h3>
+        <span class="pill">${students.length} estudiante${students.length===1?'':'s'}</span>
+      </div>
+      <div style="overflow:auto;margin-top:12px">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Estudiante</th><th>Cédula</th>
+          <th>Clases realizadas</th><th>Asistencias</th><th>Ausencias</th>
+          <th>% fallas</th><th>Estado</th><th>Acciones</th>
+        </tr></thead><tbody>`;
+
+    if(!students.length){
+      html+=`<tr><td colspan="9" class="muted">No hay estudiantes matriculados en este grupo.</td></tr>`;
+    }
+
+    students.forEach((st,idx)=>{
+      const regs=groupRecords.filter(r=>String(r.cedula||"").trim()===st.cedula);
+      const uniqueSessions=new Set(
+        regs.map(r=>String(r.session_ref||"")).filter(Boolean)
+      );
+      const asistencias=uniqueSessions.size;
+      const ausencias=Math.max(0,clasesRealizadas-asistencias);
+      const pct=clasesRealizadas ? (ausencias/clasesRealizadas*100) : 0;
+      const estado = pct>=15
+        ? `<span class="pill" style="background:#fee2e2;color:#991b1b">PIERDE</span>`
+        : `<span class="pill" style="background:#dcfce7;color:#166534">BIEN</span>`;
+
+      html+=`<tr>
+        <td>${idx+1}</td>
+        <td><b>${esc(st.name||"")}</b></td>
+        <td>${esc(st.cedula)}</td>
+        <td>${clasesRealizadas}</td>
+        <td>${asistencias}</td>
+        <td>${ausencias}</td>
+        <td>${pct.toFixed(1)}%</td>
+        <td>${estado}</td>
+        <td style="min-width:360px">
+          <button type="button" onclick='verHistorialEstudiante(${JSON.stringify(st.cedula)},${JSON.stringify(g)},${JSON.stringify(subject)})'>VER HISTORIAL</button>
+          <button type="button" class="secondary" onclick='quitarEstudianteGrupoSeguro(${JSON.stringify(st.cedula)},${JSON.stringify(g)},${JSON.stringify(subject)})'>QUITAR DEL GRUPO</button>
+          <button type="button" class="danger" onclick='eliminarEstudianteCompleto(${JSON.stringify(st.cedula)},${JSON.stringify(st.name||"")})'>ELIMINAR ESTUDIANTE</button>
+        </td>
+      </tr>`;
+    });
+
+    html+=`</tbody></table></div></div>`;
+  });
+
+  attendanceTable.innerHTML=html||`<div class="card muted">Seleccione un grupo.</div>`;
 }
 function verFirmaPorId(id){
  const x=(db.records||[]).find(r=>Number(r.id)===Number(id));
@@ -1202,6 +1306,28 @@ async function deleteStudentAdmin(ced){
  await renderAll();
 }
 
+async function removeStudentFromGroup(ced,groupName,subjectName){
+ const subj=subjectName||subjectForGroup(groupName)||"";
+ if(!confirm(`¿Quitar al estudiante con cédula ${ced} únicamente de ${subj||'la asignatura'} · Grupo ${groupName}?
+
+Sus asistencias históricas NO se borrarán.`))return;
+ const {data,error}=await client.rpc("admin_remove_student_from_group",{
+   p_cedula:String(ced),
+   p_subject:String(subj),
+   p_group_name:String(groupName)
+ });
+ if(error){
+   alert("No se pudo quitar del grupo. Ejecuta primero el SQL INSTALAR_QUITAR_ESTUDIANTE_GRUPO.sql en Supabase.
+
+Detalle: "+error.message);
+   return;
+ }
+ const r=Array.isArray(data)?data[0]:data;
+ if(r&&r.ok===false){alert(r.message||"No se pudo quitar del grupo.");return;}
+ alert((r&&r.message)||data||"Estudiante retirado del grupo. Sus asistencias históricas se conservaron.");
+ await renderAll();
+}
+
 async function deleteAllStudentsAdmin(){
  if(!confirm("Se borrarán TODOS los estudiantes y TODAS sus asistencias. Los grupos se conservarán. ¿Continuar?"))return;
  if(prompt("Escribe exactamente: BORRAR ESTUDIANTES")!=="BORRAR ESTUDIANTES")return alert("Confirmación incorrecta.");
@@ -1334,6 +1460,83 @@ function openExtraordinary(){
     if(g) g.value="";
   },50);
 }
+
+let historialActual={cedula:null,group:null,subject:null};
+
+function verHistorialEstudiante(cedula,group,subject){
+  historialActual={cedula:String(cedula),group:String(group),subject:String(subject)};
+  const regs=(db.records||[]).filter(r=>
+    String(r.cedula||"").trim()===String(cedula).trim() &&
+    String(r.group||r.grupo||"")===String(group)
+  ).sort((a,b)=>new Date(b.created_at||b.hora||0)-new Date(a.created_at||a.hora||0));
+
+  const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===String(cedula).trim())||{};
+  const nombre=st.name||st.nombres||(regs[0]&&regs[0].name)||"Estudiante";
+  document.getElementById("historialTitulo").textContent=nombre;
+  document.getElementById("historialSubtitulo").textContent=`${cedula} · ${subject} · Grupo ${group}`;
+
+  let h=`<table><thead><tr><th>Fecha</th><th>Hora</th><th>Clase / sesión</th><th>Firma</th><th>Acción</th></tr></thead><tbody>`;
+  if(!regs.length) h+=`<tr><td colspan="5" class="muted">Todavía no tiene asistencias registradas.</td></tr>`;
+  regs.forEach(r=>{
+    const fecha=r.fecha||((r.created_at||r.hora)?new Date(r.created_at||r.hora).toLocaleDateString("es-CO"):"");
+    const hora=(r.hora||r.created_at)?new Date(r.hora||r.created_at).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"";
+    h+=`<tr>
+      <td>${esc(fecha||"")}</td><td>${esc(hora||"")}</td><td>${esc(r.session_ref||"")}</td>
+      <td>${r.firma?`<button type="button" onclick="verFirmaPorId(${Number(r.id)})">VER FIRMA</button>`:`<span class="muted">Sin firma</span>`}</td>
+      <td>${r.firma?`<button type="button" class="danger" onclick="eliminarFirmaPorId(${Number(r.id)})">ELIMINAR FIRMA</button>`:""}</td>
+    </tr>`;
+  });
+  h+=`</tbody></table>`;
+  document.getElementById("historialContenido").innerHTML=h;
+  document.getElementById("historialModal").style.display="block";
+}
+function cerrarHistorial(){ document.getElementById("historialModal").style.display="none"; }
+
+async function eliminarFirmaPorId(id){
+  const r=(db.records||[]).find(x=>Number(x.id)===Number(id));
+  if(!r || !r.firma){ alert("Esta asistencia no tiene firma."); return; }
+  if(!confirm("¿Eliminar únicamente la firma de esta asistencia? La asistencia se conservará.")) return;
+  const {data,error}=await client.rpc("admin_delete_attendance_signature",{p_attendance_id:Number(id)});
+  if(error){ alert("No se pudo eliminar la firma: "+error.message); return; }
+  await fetchData();
+  verHistorialEstudiante(historialActual.cedula,historialActual.group,historialActual.subject);
+  alert("Firma eliminada. La asistencia se conserva.");
+}
+
+async function quitarEstudianteGrupoSeguro(cedula,group,subject){
+  if(!confirm(`¿Quitar a ${cedula} únicamente de ${subject} · Grupo ${group}? Se conservará su historial de asistencias.`)) return;
+  let {data,error}=await client.rpc("admin_remove_student_from_group",{
+    p_cedula:String(cedula), p_subject:String(subject), p_group_name:String(group)
+  });
+  if(error){
+    // Compatibilidad con el nombre de RPC de la versión previa, si existe.
+    const alt=await client.rpc("quitar_estudiante_grupo",{
+      p_cedula:String(cedula), p_subject:String(subject), p_group_name:String(group)
+    });
+    error=alt.error; data=alt.data;
+  }
+  if(error){ alert("No se pudo quitar del grupo: "+error.message); return; }
+  await fetchData();
+  alert("Estudiante retirado del grupo. Su historial se conserva.");
+}
+
+async function eliminarEstudianteCompleto(cedula,nombre){
+  const aviso=`¿ELIMINAR COMPLETAMENTE a ${nombre||cedula} (${cedula})?\n\nEsto eliminará sus matrículas y puede eliminar sus asistencias históricas. Esta acción es diferente de QUITAR DEL GRUPO.`;
+  if(!confirm(aviso)) return;
+  if(!confirm("Confirmación final: ¿realmente desea eliminar al estudiante del sistema?")) return;
+
+  // Reutiliza la función de borrado ya existente en el panel cuando esté disponible.
+  if(typeof deleteStudent==="function"){
+    const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===String(cedula).trim());
+    if(st){ await deleteStudent(st.id); return; }
+  }
+  if(typeof borrarEstudiante==="function"){
+    const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===String(cedula).trim());
+    if(st){ await borrarEstudiante(st.id); return; }
+  }
+  alert("No encontré la función de eliminación completa de esta versión. Use QUITAR DEL GRUPO por ahora para no borrar datos accidentalmente.");
+}
+
 </script>
 
 </body></html>
