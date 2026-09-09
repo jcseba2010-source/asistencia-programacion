@@ -860,6 +860,11 @@ function renderStudents(){
 function filteredAttendance(){let s=filterSubject.value,g=filterGroup.value,q=search.value.toLowerCase();let by={};db.sessions.forEach(x=>by[x.id]=x);return db.records.map(x=>({...x,session:by[x.session_ref]||{}})).filter(x=>(!s||x.session.subject===s)&&(!g||x.group===g)&&(!q||[x.name,x.cedula,x.correo].some(v=>String(v||"").toLowerCase().includes(q))))}
 let firmaActual=null;
 function renderTable(){
+  const attendanceTable = document.getElementById("attendanceGroups");
+  if(!attendanceTable){
+    console.error("No se encontró el contenedor #attendanceGroups");
+    return;
+  }
   const selected=filterGroup.value;
   const order=[...new Set(db.groups.map(x=>x.group_name).filter(Boolean))];
   const visible=selected?[selected]:order;
