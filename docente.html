@@ -517,7 +517,7 @@ async function rotateDynamicQr(){
   const r=Array.isArray(data)?data[0]:data;
   if(!r||!r.token)throw new Error("No se recibió el token dinámico.");
   currentQrToken=r.token;currentQrExpiresAt=new Date(r.expires_at);
-  const base=location.href.replace("docente.html","index.html").split("?")[0];
+  const base="https://jcseba2010-source.github.io/asistencia-programacion/index.html";
   const url=base+"?clase="+encodeURIComponent(active.code)+"&qr="+encodeURIComponent(currentQrToken);
   qr.src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data="+encodeURIComponent(url);
   const s=document.getElementById("qrStatus");if(s)s.textContent="QR vigente. El siguiente se generará automáticamente.";
