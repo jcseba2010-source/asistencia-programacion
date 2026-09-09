@@ -197,6 +197,7 @@ td{
 @media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style><!-- VERSION PANEL ACUMULADO CORREGIDO 2026-09-09 -->
 <!-- HISTORIAL CON CLASE NUMERADA -->
 <!-- VERSION SOLO CLASES REALES -->
+<!-- REGLA ESTADO: 0-1 BIEN, 2 EN RIESGO, 3+ PIERDE -->
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
@@ -933,7 +934,7 @@ function renderTable(){
         <thead><tr>
           <th>#</th><th>Estudiante</th><th>Cédula</th>
           <th>Clases realizadas</th><th>Asistencias</th><th>Ausencias</th>
-          <th>% fallas</th><th>Estado</th><th>Acciones</th>
+          <th>% actual</th><th>Estado (3 faltas)</th><th>Acciones</th>
         </tr></thead><tbody>`;
 
     if(!students.length){
@@ -951,9 +952,14 @@ function renderTable(){
       const asistencias=uniqueSessions.size;
       const ausencias=Math.max(0,clasesRealizadas-asistencias);
       const pct=clasesRealizadas ? (ausencias/clasesRealizadas*100) : 0;
-      const estado = pct>=15
-        ? `<span class="pill" style="background:#fee2e2;color:#991b1b">PIERDE</span>`
-        : `<span class="pill" style="background:#dcfce7;color:#166534">BIEN</span>`;
+      let estado;
+      if(ausencias>=3){
+        estado=`<span class="pill" style="background:#fee2e2;color:#991b1b">PIERDE</span>`;
+      }else if(ausencias===2){
+        estado=`<span class="pill" style="background:#fef3c7;color:#92400e">EN RIESGO</span>`;
+      }else{
+        estado=`<span class="pill" style="background:#dcfce7;color:#166534">BIEN</span>`;
+      }
 
       html+=`<tr>
         <td>${idx+1}</td>
