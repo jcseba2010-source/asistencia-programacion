@@ -195,6 +195,7 @@ td{
 .horario-class .room{display:block;margin-top:3px;font-size:11px}.horario-class button{margin-top:6px;padding:6px 8px;font-size:11px;width:100%}
 .proxima-clase{margin-top:12px;padding:12px 14px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700}
 @media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style><!-- VERSION PANEL ACUMULADO CORREGIDO 2026-09-09 -->
+<!-- HISTORIAL CON CLASE NUMERADA -->
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
@@ -1469,27 +1470,46 @@ let historialActual={cedula:null,group:null,subject:null};
 
 function verHistorialEstudiante(cedula,group,subject){
   historialActual={cedula:String(cedula),group:String(group),subject:String(subject)};
+
   const regs=(db.records||[]).filter(r=>
     String(r.cedula||"").trim()===String(cedula).trim() &&
     String(r.group||r.grupo||"")===String(group)
-  ).sort((a,b)=>new Date(b.created_at||b.hora||0)-new Date(a.created_at||a.hora||0));
+  ).sort((a,b)=>new Date(a.created_at||a.hora||0)-new Date(b.created_at||b.hora||0));
 
   const st=(db.students||[]).find(s=>String(s.cedula||s.codigo||"").trim()===String(cedula).trim())||{};
   const nombre=st.name||st.nombres||(regs[0]&&regs[0].name)||"Estudiante";
   document.getElementById("historialTitulo").textContent=nombre;
   document.getElementById("historialSubtitulo").textContent=`${cedula} · ${subject} · Grupo ${group}`;
 
-  let h=`<table><thead><tr><th>Fecha</th><th>Hora</th><th>Clase / sesión</th><th>Firma</th><th>Acción</th></tr></thead><tbody>`;
+  // Numeración visible por las clases del grupo. El ID interno de Supabase no se muestra.
+  const sesionesGrupo=(db.sessions||[]).filter(s=>{
+    const sg=String(s.group_name||s.group||"");
+    const ss=String(s.subject||"");
+    return sg===String(group) && (!ss || ss===String(subject));
+  }).sort((a,b)=>new Date(a.starts_at||a.created_at||0)-new Date(b.starts_at||b.created_at||0));
+
+  const numeroPorSesion=new Map();
+  sesionesGrupo.forEach((s,i)=>numeroPorSesion.set(String(s.id),i+1));
+
+  let h=`<table><thead><tr><th>Clase</th><th>Fecha</th><th>Hora</th><th>Firma</th><th>Acción</th></tr></thead><tbody>`;
   if(!regs.length) h+=`<tr><td colspan="5" class="muted">Todavía no tiene asistencias registradas.</td></tr>`;
-  regs.forEach(r=>{
-    const fecha=r.fecha||((r.created_at||r.hora)?new Date(r.created_at||r.hora).toLocaleDateString("es-CO"):"");
-    const hora=(r.hora||r.created_at)?new Date(r.hora||r.created_at).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"";
+
+  regs.forEach((r,idx)=>{
+    const raw=r.hora||r.created_at||"";
+    const d=raw?new Date(raw):null;
+    const fecha=r.fecha || (d && !isNaN(d) ? d.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"}) : "");
+    const hora=d && !isNaN(d) ? d.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "";
+    const nClase=numeroPorSesion.get(String(r.session_ref)) || (idx+1);
+
     h+=`<tr>
-      <td>${esc(fecha||"")}</td><td>${esc(hora||"")}</td><td>${esc(r.session_ref||"")}</td>
+      <td><b>Clase #${nClase}</b></td>
+      <td>${esc(fecha||"")}</td>
+      <td>${esc(hora||"")}</td>
       <td>${r.firma?`<button type="button" onclick="verFirmaPorId(${Number(r.id)})">VER FIRMA</button>`:`<span class="muted">Sin firma</span>`}</td>
       <td>${r.firma?`<button type="button" class="danger" onclick="eliminarFirmaPorId(${Number(r.id)})">ELIMINAR FIRMA</button>`:""}</td>
     </tr>`;
   });
+
   h+=`</tbody></table>`;
   document.getElementById("historialContenido").innerHTML=h;
   document.getElementById("historialModal").style.display="block";
