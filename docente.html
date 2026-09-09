@@ -1317,9 +1317,7 @@ Sus asistencias históricas NO se borrarán.`))return;
    p_group_name:String(groupName)
  });
  if(error){
-   alert("No se pudo quitar del grupo. Ejecuta primero el SQL INSTALAR_QUITAR_ESTUDIANTE_GRUPO.sql en Supabase.
-
-Detalle: "+error.message);
+   alert("No se pudo quitar del grupo. Ejecuta primero el SQL INSTALAR_QUITAR_ESTUDIANTE_GRUPO.sql en Supabase.\n\nDetalle: "+error.message);
    return;
  }
  const r=Array.isArray(data)?data[0]:data;
