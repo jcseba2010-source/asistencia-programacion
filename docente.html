@@ -200,7 +200,7 @@ td{
 <!-- REGLA ESTADO: 0-1 BIEN, 2 EN RIESGO, 3+ PIERDE -->
 <!-- NOTAS: (aciertos / total) * 5; aprueba >= 3.0 -->
 </head>
-<body><div id="v21banner" style="position:sticky;top:0;z-index:99999;background:#7c3aed;color:white;padding:12px 16px;text-align:center;font-weight:800;font-size:18px;border-bottom:4px solid #facc15">VERSIÓN 21 – PRUEBA DE ACTUALIZACIÓN · GRUPO V</div>
+<body><div id="v21banner" style="position:sticky;top:0;z-index:99999;background:#7c3aed;color:white;padding:12px 16px;text-align:center;font-weight:800;font-size:18px;border-bottom:4px solid #facc15">VERSIÓN 22 – BOTÓN PARA SIN RESULTADO</div>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
 <div class="teacher-band" id="teacherBand" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente: cargando...</div>
 
@@ -799,7 +799,7 @@ function renderExams(){
    if(a){
      return `<tr style="background:#fff7ed"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b45309">INTENTO SIN RESULTADO</b></td><td>${Number(a.security_violations||0)} salida(s)</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`;
    }
-   return `<tr style="background:#fef2f2"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b91c1c">SIN RESULTADO</b></td><td>—</td><td>—</td><td>—</td></tr>`;
+   return `<tr style="background:#fef2f2"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b91c1c">SIN RESULTADO</b></td><td>—</td><td>—</td><td><button class="danger" onclick="clearMissingExamAttempt('${String(x.ced).replace(/'/g,"\\'")}', ${Number(examId)}, '${String(nombre).replace(/'/g,"\\'")}')">Eliminar intento</button></td></tr>`;
  }).join('')||'<tr><td colspan="10" class="muted">No se encontró ningún estudiante del grupo en matrícula, registro, resultados ni intentos.</td></tr>';
 
  const attemptBody=document.getElementById('examAttemptsBody');
@@ -809,6 +809,48 @@ function renderExams(){
 }
 async function publishExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;if(!exam_id)return alert('No hay examen disponible.');const {error}=await client.from('exam_publications').upsert({exam_id,group_name,active:true,published_at:new Date().toISOString()},{onConflict:'exam_id,group_name'});if(error)return alert(error.message);alert('Evaluación publicada para Programación I · Grupo '+group_name);await renderAll()}
 async function closeExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;const {error}=await client.from('exam_publications').update({active:false}).eq('exam_id',exam_id).eq('group_name',group_name);if(error)return alert(error.message);alert('Evaluación cerrada para el Grupo '+group_name);await renderAll()}
+
+async function clearMissingExamAttempt(cedula, examId, nombre){
+  if(!confirm(`¿Limpiar cualquier intento pendiente de ${nombre || 'este estudiante'} · ${cedula}?\n\nEsta acción NO elimina al estudiante, matrícula ni asistencias. Si no existe ningún intento o resultado guardado, simplemente confirmará que ya está habilitado para volver a presentar.`)) return;
+
+  try{
+    // 1) Revisar si apareció un resultado después de la última actualización.
+    const rr=await client.from('exam_results').select('id,cedula,exam_id').eq('cedula',String(cedula)).eq('exam_id',Number(examId));
+    if(rr.error) throw rr.error;
+    if((rr.data||[]).length){
+      for(const r of rr.data){
+        const del=await client.rpc('admin_delete_exam_attempt',{p_result_id:Number(r.id)});
+        if(del.error) throw del.error;
+      }
+      alert('Resultado/intento eliminado. El estudiante ya puede volver a presentar la evaluación si está publicada.');
+      await renderAll();
+      return;
+    }
+
+    // 2) Revisar intentos mediante la función administrativa (evita problemas de RLS).
+    let attempts=[];
+    const ea=await client.rpc('admin_list_exam_attempts');
+    if(!ea.error){
+      attempts=(ea.data||[]).filter(a=>String(a.cedula||'')===String(cedula) && Number(a.exam_id)===Number(examId));
+    }
+    if(attempts.length){
+      for(const a of attempts){
+        const del=await client.rpc('admin_delete_exam_attempt_by_id',{p_attempt_id:Number(a.attempt_id)});
+        if(del.error) throw del.error;
+      }
+      alert('Intento eliminado. El estudiante ya puede volver a presentar la evaluación si está publicada.');
+      await renderAll();
+      return;
+    }
+
+    // No existe nada que borrar: ese es precisamente el caso SIN RESULTADO.
+    alert('No existe ningún intento ni resultado guardado para este estudiante. Ya está limpio y habilitado para volver a presentar cuando la evaluación esté publicada.');
+    await renderAll();
+  }catch(e){
+    console.error(e);
+    alert('No se pudo completar la limpieza. Detalle: '+(e?.message||e));
+  }
+}
 
 async function deleteExamAttempt(resultId){
   const r=(db.examResults||[]).find(x=>Number(x.id)===Number(resultId));
