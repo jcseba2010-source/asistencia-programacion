@@ -748,71 +748,63 @@ async function renderAll(){
 }
 function renderExams(){
  const sel=document.getElementById('examSelect'),body=document.getElementById('examResultsBody'),status=document.getElementById('examPubStatus'); if(!sel)return;
+ const prevExam=sel.value;
  sel.innerHTML=(db.exams||[]).map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('')||'<option value="">Ejecuta EJECUTAR_MODULO_EVALUACIONES.sql</option>';
+ if(prevExam && [...sel.options].some(o=>String(o.value)===String(prevExam))) sel.value=prevExam;
  const activeP=(db.examPublications||[]).filter(x=>x.active); status.textContent=activeP.length?'Activas: '+activeP.map(x=>'Grupo '+x.group_name).join(', '):'No hay evaluaciones activas.';
 
- // V19: La base del listado es la matrícula del grupo, NO exam_results.
- // Así siempre se ven todos los estudiantes del grupo aunque una entrega haya fallado.
  const groupSel=document.getElementById('examGroup');
  const grupo=String(groupSel?.value||'').trim();
  const examId=Number(sel.value||0);
  const examObj=(db.exams||[]).find(x=>Number(x.id)===examId);
  const subject=String(examObj?.subject||'Programación I').trim();
- const norm=v=>String(v??'').trim().toLowerCase();
+ const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+ const cedOf=x=>String(x?.cedula||x?.student_cedula||'').trim();
+ const sameGroup=x=>!grupo || norm(x?.group_name||x?.group)===norm(grupo);
+ const sameSubject=x=>!subject || !x?.subject || norm(x.subject)===norm(subject);
+ const sameExam=x=>!examId || !x?.exam_id || Number(x.exam_id)===examId;
 
- const matriculas=(db.enrollments||[]).filter(e=>
-   (!grupo || norm(e.group_name)===norm(grupo)) &&
-   (!subject || norm(e.subject)===norm(subject))
- );
+ // V20: reunir estudiantes desde TODAS las fuentes conocidas, no solo student_enrollments.
+ const cedulas=new Set();
+ (db.enrollments||[]).filter(x=>sameGroup(x)&&sameSubject(x)).forEach(x=>{const c=cedOf(x);if(c)cedulas.add(c)});
+ (db.students||[]).filter(x=>norm(x.group||x.group_name)===norm(grupo)).forEach(x=>{const c=cedOf(x);if(c)cedulas.add(c)});
+ (db.examResults||[]).filter(x=>sameGroup(x)&&sameExam(x)).forEach(x=>{const c=cedOf(x);if(c)cedulas.add(c)});
+ (db.examAttempts||[]).filter(x=>sameGroup(x)&&sameExam(x)).forEach(x=>{const c=cedOf(x);if(c)cedulas.add(c)});
 
- const byCedula=new Map();
- for(const e of matriculas){
-   const ced=String(e.cedula||e.student_cedula||'').trim();
-   if(ced && !byCedula.has(ced)) byCedula.set(ced,e);
- }
-
- const alumnos=[...byCedula.keys()].map(ced=>{
-   const st=(db.students||[]).find(x=>String(x.cedula||'').trim()===ced)||{};
-   const en=byCedula.get(ced)||{};
-   const res=(db.examResults||[]).find(r=>
-     String(r.cedula||'').trim()===ced &&
-     (!grupo || norm(r.group_name)===norm(grupo)) &&
-     (!examId || !r.exam_id || Number(r.exam_id)===examId)
-   );
-   const att=(db.examAttempts||[]).find(a=>
-     String(a.cedula||'').trim()===ced &&
-     (!grupo || norm(a.group_name)===norm(grupo)) &&
-     (!examId || !a.exam_id || Number(a.exam_id)===examId)
-   );
+ const alumnos=[...cedulas].map(ced=>{
+   const st=(db.students||[]).find(x=>cedOf(x)===ced)||{};
+   const en=(db.enrollments||[]).find(x=>cedOf(x)===ced&&sameGroup(x)&&sameSubject(x))||{};
+   const res=(db.examResults||[]).find(r=>cedOf(r)===ced&&sameGroup(r)&&sameExam(r));
+   const att=(db.examAttempts||[]).find(a=>cedOf(a)===ced&&sameGroup(a)&&sameExam(a));
    return {ced,st,en,res,att};
- });
+ }).sort((a,b)=>String(a.st.name||a.res?.student_name||a.att?.student_name||'').localeCompare(String(b.st.name||b.res?.student_name||b.att?.student_name||''),'es'));
 
- // Si por alguna razón no hay matrículas cargadas, conserva el comportamiento anterior.
- if(!alumnos.length){
-   body.innerHTML=(db.examResults||[]).map((r,i)=>{
-     const aciertos=Number(r.correct_answers||0), total=Number(r.total_questions||0);
-     const nota=total>0?(aciertos/total)*5:0;
-     return `<tr><td>${i+1}</td><td>${esc(r.student_name)}</td><td>${esc(r.cedula)}</td><td>${esc(r.group_name)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${nota>=3?'APROBÓ':'PERDIÓ'}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
-   }).join('')||'<tr><td colspan="10" class="muted">No hay estudiantes matriculados ni resultados para este grupo.</td></tr>';
- } else {
-   body.innerHTML=alumnos.map((x,i)=>{
-     const r=x.res, a=x.att;
-     const nombre=x.st.name||x.st.nombre||r?.student_name||a?.student_name||'—';
-     if(r){
-       const aciertos=Number(r.correct_answers||0), total=Number(r.total_questions||0);
-       const nota=total>0?(aciertos/total)*5:0;
-       return `<tr><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${nota>=3?'APROBÓ':'PERDIÓ'}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
-     }
-     if(a){
-       return `<tr style="background:#fff7ed"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b45309">INTENTO SIN RESULTADO</b></td><td>${Number(a.security_violations||0)} salida(s)</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`;
-     }
-     return `<tr style="background:#fef2f2"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b91c1c">SIN REGISTRO</b></td><td>—</td><td>—</td><td>—</td></tr>`;
-   }).join('');
- }
+ // Diagnóstico visible para saber de dónde salen los alumnos.
+ const counts={
+   matriculas:(db.enrollments||[]).filter(x=>sameGroup(x)&&sameSubject(x)).length,
+   registro:(db.students||[]).filter(x=>norm(x.group||x.group_name)===norm(grupo)).length,
+   resultados:(db.examResults||[]).filter(x=>sameGroup(x)&&sameExam(x)).length,
+   intentos:(db.examAttempts||[]).filter(x=>sameGroup(x)&&sameExam(x)).length,
+   unicos:alumnos.length
+ };
+ status.textContent += ` · Grupo ${grupo}: ${counts.unicos} estudiante(s) únicos [matrículas ${counts.matriculas}, registro ${counts.registro}, resultados ${counts.resultados}, intentos ${counts.intentos}]`;
+
+ body.innerHTML=alumnos.map((x,i)=>{
+   const r=x.res,a=x.att;
+   const nombre=x.st.name||x.st.nombre||r?.student_name||a?.student_name||'—';
+   if(r){
+     const aciertos=Number(r.correct_answers||0), total=Number(r.total_questions||0), nota=total>0?(aciertos/total)*5:0;
+     return `<tr><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${nota>=3?'APROBÓ':'PERDIÓ'}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
+   }
+   if(a){
+     return `<tr style="background:#fff7ed"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b45309">INTENTO SIN RESULTADO</b></td><td>${Number(a.security_violations||0)} salida(s)</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`;
+   }
+   return `<tr style="background:#fef2f2"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b91c1c">SIN RESULTADO</b></td><td>—</td><td>—</td><td>—</td></tr>`;
+ }).join('')||'<tr><td colspan="10" class="muted">No se encontró ningún estudiante del grupo en matrícula, registro, resultados ni intentos.</td></tr>';
 
  const attemptBody=document.getElementById('examAttemptsBody');
  if(attemptBody){
-   attemptBody.innerHTML=(db.examAttempts||[]).map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.student_name||'—')}</td><td>${esc(a.cedula)}</td><td>${esc(a.subject||'—')}</td><td>${esc(a.group_name)}</td><td><b>${a.active?'ABIERTO':'CERRADO'}</b></td><td>${Number(a.security_violations||0)}</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">No hay intentos de evaluación registrados.</td></tr>';
+   attemptBody.innerHTML=(db.examAttempts||[]).filter(a=>sameGroup(a)).map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.student_name||'—')}</td><td>${esc(a.cedula)}</td><td>${esc(a.subject||'—')}</td><td>${esc(a.group_name)}</td><td><b>${a.active?'ABIERTO':'CERRADO'}</b></td><td>${Number(a.security_violations||0)}</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">No hay intentos de evaluación registrados para este grupo.</td></tr>';
  }
 }
 async function publishExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;if(!exam_id)return alert('No hay examen disponible.');const {error}=await client.from('exam_publications').upsert({exam_id,group_name,active:true,published_at:new Date().toISOString()},{onConflict:'exam_id,group_name'});if(error)return alert(error.message);alert('Evaluación publicada para Programación I · Grupo '+group_name);await renderAll()}
