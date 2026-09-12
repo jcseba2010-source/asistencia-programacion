@@ -420,6 +420,31 @@ function collectAnswers(allowMissing){
   return {ok:true,answers:ans};
 }
 
+
+function buildAutoCleanCodePayload(answers){
+  const out={p23:{question:'',answer:''},p24:{question:'',answer:''},p25:{question:'',answer:''}};
+  (current?.questions||[]).forEach((q,i)=>{
+    if(q?.type!=='code')return;
+    const text=String(q.q||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+    const item={question:String(q.q||''),answer:String(answers?.[i]||'')};
+    if(text.includes('valida') || text.includes('tipo de vehiculo')) out.p23=item;
+    else if(text.includes('tarifa') || text.includes('descuento')) out.p24=item;
+    else out.p25=item;
+  });
+  return out;
+}
+
+async function saveAutoCleanCodeAnswers(answers){
+  if(!isAutoCleanExam(current))return;
+  const {data,error}=await client.rpc('save_exam_code_answers_secure',{
+    p_access_token:current.access_token,
+    p_device_id:deviceId,
+    p_code_answers:buildAutoCleanCodePayload(answers)
+  });
+  if(error)throw error;
+  if(data && data.ok===false)throw new Error(data.message||'No fue posible guardar las respuestas abiertas.');
+}
+
 async function submitExam(auto=false){
   if(submitting||!current)return;
   const got=collectAnswers(auto);
@@ -428,6 +453,7 @@ async function submitExam(auto=false){
   submitting=true;
   document.getElementById('submitBtn').disabled=true;
   try{
+    await saveAutoCleanCodeAnswers(got.answers);
     const {data,error}=await client.rpc('submit_exam_secure',{
       p_access_token:current.access_token,
       p_device_id:deviceId,
