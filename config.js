@@ -30,7 +30,78 @@ document.addEventListener("click", function (event) {
   }
 
   window.openCodeReview(reviewId, studentName);
+  setTimeout(renderCodeCorrections, 0);
 }, true);
+
+function correctionBox(title, text) {
+  const box = document.createElement("div");
+  box.className = "teacher-correction-box";
+  box.style.cssText = "margin-top:10px;padding:12px 14px;border:2px solid #16a34a;border-radius:10px;background:#f0fdf4;color:#14532d;white-space:pre-wrap;font-family:Arial,Helvetica,sans-serif;line-height:1.45";
+  const h = document.createElement("div");
+  h.style.cssText = "font-weight:800;margin-bottom:7px;color:#166534";
+  h.textContent = "✅ CORRECCIÓN / RESPUESTA ESPERADA · " + title;
+  const body = document.createElement("div");
+  body.textContent = text;
+  box.appendChild(h);
+  box.appendChild(body);
+  return box;
+}
+
+function renderCodeCorrections() {
+  const r = (typeof currentCodeReview !== "undefined") ? currentCodeReview : null;
+  if (!r) return;
+
+  document.querySelectorAll(".teacher-correction-box").forEach(x => x.remove());
+
+  const corrections = {
+    p23: r.p23_correction || r.p23_expected || r.p23_solution ||
+`La respuesta debe mostrar las validaciones solicitadas antes de continuar el proceso.
+Debe usar condicionales y/o ciclos para impedir datos inválidos, repetir la captura cuando corresponda y conservar únicamente valores permitidos.
+
+Para asignar el puntaje completo verifique:
+• que valide los datos indicados en el enunciado;
+• que no acepte valores fuera del rango permitido;
+• que el programa vuelva a solicitar el dato cuando sea incorrecto;
+• que la lógica permita continuar cuando el valor sea válido.`,
+
+    p24: r.p24_correction || r.p24_expected || r.p24_solution ||
+`La solución debe implementar correctamente la lógica de tarifas y el descuento solicitado mediante if / elif / else.
+
+Estructura esperada:
+1. Determinar la tarifa según la condición indicada.
+2. Calcular el valor inicial.
+3. Evaluar si cumple la condición para descuento.
+4. Aplicar el descuento únicamente cuando corresponda.
+5. Obtener y mostrar o retornar el valor final.
+
+Debe existir una diferencia clara entre el valor antes del descuento y el total final.`,
+
+    p25: r.p25_correction || r.p25_expected || r.p25_solution ||
+`La solución integral debe usar ciclos anidados para recorrer correctamente los niveles solicitados en AUTO CLEAN.
+
+Para el puntaje completo verifique:
+• ciclo externo para el primer nivel del proceso;
+• ciclo interno para repetir las operaciones de cada nivel;
+• contadores y acumuladores correctamente inicializados y actualizados;
+• reinicio de variables internas cuando comienza una nueva iteración externa;
+• cálculo de los totales generales;
+• informe final con los resultados acumulados.
+
+La estructura debe resolver el proceso completo, no solamente una iteración aislada.`
+  };
+
+  const targets = [
+    ["p23Answer", "P23", corrections.p23],
+    ["p24Answer", "P24", corrections.p24],
+    ["p25Answer", "P25", corrections.p25]
+  ];
+
+  targets.forEach(([id, title, text]) => {
+    const answer = document.getElementById(id);
+    if (!answer) return;
+    answer.insertAdjacentElement("afterend", correctionBox(title, text));
+  });
+}
 
 /*
  * Parche para GUARDAR CALIFICACIÓN.
