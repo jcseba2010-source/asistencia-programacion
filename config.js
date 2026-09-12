@@ -22,6 +22,7 @@ document.addEventListener("click", function (event) {
   }
   window.openCodeReview(reviewId, studentName);
   setTimeout(renderCodeCorrections, 0);
+  setTimeout(renderTeacherCodePhotos, 150);
 }, true);
 
 function codeCorrectionBox(title, code, note) {
@@ -121,3 +122,233 @@ document.addEventListener("click", async function (event) {
     alert("No se pudo guardar la calificación. Detalle: " + (e?.message || e));
   }
 }, true);
+
+/* ============================================================
+   FOTOS DEL DESARROLLO EN PAPEL - P23, P24, P25
+   ============================================================ */
+window.__examPhotoUploads = 0;
+
+function detectCodeQuestionNo(card){
+  const t=String(card?.textContent||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(t.includes('valida') || t.includes('tipo de vehiculo')) return 23;
+  if(t.includes('tarifa') || t.includes('descuento')) return 24;
+  return 25;
+}
+
+function addPhotoControls(){
+  const questions=document.getElementById('questions');
+  if(!questions || typeof current==='undefined' || !current) return;
+  questions.querySelectorAll('.code-question').forEach(card=>{
+    if(card.querySelector('.paper-photo-box')) return;
+    const qno=detectCodeQuestionNo(card);
+    const box=document.createElement('div');
+    box.className='paper-photo-box';
+    box.style.cssText='margin-top:12px;padding:12px;border:2px dashed #0b57d0;border-radius:12px;background:#eef6ff';
+    box.innerHTML=`<div style="font-weight:900;margin-bottom:7px">📷 DESARROLLO EN PAPEL · P${qno}</div>
+      <div style="font-size:13px;margin-bottom:8px">Opcional: toma una foto clara o selecciona una imagen. Máximo 5 MB.</div>
+      <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" data-qno="${qno}" style="width:100%">
+      <div class="photo-status" style="font-size:13px;margin-top:8px"></div>
+      <img class="photo-preview" alt="Vista previa" style="display:none;max-width:100%;max-height:320px;margin-top:10px;border-radius:10px;border:1px solid #cbd5e1">`;
+    card.appendChild(box);
+    const input=box.querySelector('input[type=file]');
+    input.addEventListener('change', async ()=>{
+      const file=input.files?.[0];
+      const status=box.querySelector('.photo-status');
+      const preview=box.querySelector('.photo-preview');
+      if(!file) return;
+      if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+        input.value=''; status.textContent='Formato no permitido.'; return;
+      }
+      if(file.size>5242880){
+        input.value=''; status.textContent='La imagen supera 5 MB.'; return;
+      }
+      preview.src=URL.createObjectURL(file); preview.style.display='block';
+      window.__examPhotoUploads++;
+      const submit=document.getElementById('submitBtn'); if(submit) submit.disabled=true;
+      status.textContent='Subiendo foto...';
+      try{
+        const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');
+        const ced=String(document.getElementById('cedula')?.value||current.cedula||'').trim();
+        const examId=Number(current.exam_id||0);
+        const grp=String(current.group_name||current.group||'');
+        const safeCed=ced.replace(/[^0-9A-Za-z_-]/g,'_');
+        const path=`${examId}/${safeCed}/p${qno}_${Date.now()}.${ext}`;
+        const up=await client.storage.from('exam-code-photos').upload(path,file,{contentType:file.type,upsert:false});
+        if(up.error) throw up.error;
+        const reg=await client.rpc('save_exam_code_photo',{
+          p_exam_id:examId,
+          p_cedula:ced,
+          p_group_name:grp,
+          p_question_no:qno,
+          p_storage_path:path,
+          p_mime_type:file.type,
+          p_size_bytes:file.size
+        });
+        if(reg.error) throw reg.error;
+        if(reg.data?.ok===false) throw new Error(reg.data.message||'No se pudo registrar la foto.');
+        status.textContent='✅ Foto guardada correctamente.';
+      }catch(e){
+        console.error('Foto examen',e);
+        status.textContent='❌ No se pudo guardar la foto: '+(e?.message||e);
+      }finally{
+        window.__examPhotoUploads=Math.max(0,window.__examPhotoUploads-1);
+        if(submit) submit.disabled=false;
+      }
+    });
+  });
+}
+
+window.addEventListener('load',()=>{
+  const q=document.getElementById('questions');
+  if(q){
+    new MutationObserver(()=>addPhotoControls()).observe(q,{childList:true,subtree:true});
+    setTimeout(addPhotoControls,500);
+  }
+});
+
+document.addEventListener('click',function(e){
+  const b=e.target.closest && e.target.closest('#submitBtn');
+  if(!b) return;
+  if(window.__examPhotoUploads>0){
+    e.preventDefault(); e.stopPropagation();
+    if(typeof e.stopImmediatePropagation==='function') e.stopImmediatePropagation();
+    alert('Espera a que termine de subir la foto antes de enviar la evaluación.');
+  }
+},true);
+
+/* Mostrar las fotos dentro de REVISAR CÓDIGO */
+async function renderTeacherCodePhotos(){
+  try{
+    const r=(typeof currentCodeReview!=='undefined')?currentCodeReview:null;
+    if(!r || typeof client==='undefined') return;
+    document.querySelectorAll('.teacher-photo-box').forEach(x=>x.remove());
+    const resp=await client.rpc('admin_list_exam_code_photos');
+    if(resp.error) return console.warn('Fotos examen:',resp.error.message);
+    const examId=Number(r.exam_id||0), ced=String(r.cedula||'');
+    const photos=(resp.data||[]).filter(p=>Number(p.exam_id)===examId && String(p.cedula)===ced);
+    for(const p of photos){
+      const signed=await client.storage.from('exam-code-photos').createSignedUrl(p.storage_path,3600);
+      if(signed.error || !signed.data?.signedUrl) continue;
+      const target=document.getElementById('p'+p.question_no+'Answer');
+      if(!target) continue;
+      const box=document.createElement('div');
+      box.className='teacher-photo-box';
+      box.style.cssText='margin-top:10px;padding:12px;border:2px solid #2563eb;border-radius:12px;background:#eff6ff';
+      box.innerHTML=`<div style="font-weight:900;margin-bottom:8px">📷 DESARROLLO EN PAPEL · P${p.question_no}</div>
+        <a href="${signed.data.signedUrl}" target="_blank" rel="noopener" style="font-weight:800">🔎 ABRIR FOTO EN TAMAÑO GRANDE</a><br>
+        <img src="${signed.data.signedUrl}" alt="Desarrollo P${p.question_no}" style="max-width:100%;max-height:420px;margin-top:10px;border-radius:10px">`;
+      const corr=target.nextElementSibling;
+      if(corr && corr.classList.contains('teacher-correction-box')) corr.insertAdjacentElement('afterend',box);
+      else target.insertAdjacentElement('afterend',box);
+    }
+  }catch(e){ console.warn('renderTeacherCodePhotos',e); }
+}
+
+/* ============================================================
+   VER EXAMEN COMPLETO - PANEL DOCENTE
+   ============================================================ */
+function escapeExamHtml(s){
+  return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+function ensureFullExamModal(){
+  if(document.getElementById('fullExamModal')) return;
+  const modal=document.createElement('div');
+  modal.id='fullExamModal';
+  modal.style.cssText='display:none;position:fixed;inset:0;background:#071936cc;z-index:10000;overflow:auto;padding:24px';
+  modal.innerHTML=`<div style="max-width:1050px;margin:auto;background:#fff;border-radius:16px;padding:22px;box-shadow:0 20px 60px #0005">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h2 style="margin:0">👁 EXAMEN COMPLETO DEL ESTUDIANTE</h2><button id="closeFullExamBtn" class="secondary">CERRAR</button></div>
+    <div id="fullExamContent" style="margin-top:18px"></div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('closeFullExamBtn').onclick=()=>{modal.style.display='none';};
+}
+
+function injectFullExamButtons(){
+  const body=document.getElementById('examResultsBody');
+  if(!body) return;
+  body.querySelectorAll('tr').forEach(row=>{
+    if(row.querySelector('.view-full-exam-btn')) return;
+    const del=row.querySelector('button[onclick*="deleteExamAttempt("]');
+    if(!del) return;
+    const m=(del.getAttribute('onclick')||'').match(/deleteExamAttempt\((\d+)\)/);
+    if(!m) return;
+    const b=document.createElement('button');
+    b.type='button'; b.className='secondary view-full-exam-btn'; b.dataset.resultId=m[1];
+    b.textContent='👁 VER EXAMEN COMPLETO';
+    del.parentElement.insertBefore(b,del);
+  });
+}
+
+window.addEventListener('load',()=>{
+  const body=document.getElementById('examResultsBody');
+  if(body){
+    new MutationObserver(()=>injectFullExamButtons()).observe(body,{childList:true,subtree:true});
+    setTimeout(injectFullExamButtons,1000);
+  }
+});
+
+document.addEventListener('click',async function(e){
+  const b=e.target.closest && e.target.closest('.view-full-exam-btn');
+  if(!b) return;
+  e.preventDefault();
+  await openFullExam(Number(b.dataset.resultId));
+});
+
+async function openFullExam(resultId){
+  ensureFullExamModal();
+  const modal=document.getElementById('fullExamModal');
+  const content=document.getElementById('fullExamContent');
+  modal.style.display='block';
+  content.innerHTML='<p>Cargando examen...</p>';
+  try{
+    if(typeof db==='undefined') throw new Error('Los resultados todavía no están cargados.');
+    const r=(db.examResults||[]).find(x=>Number(x.id)===Number(resultId));
+    if(!r) throw new Error('No se encontró el resultado del estudiante.');
+
+    const ex=await client.from('exams').select('id,title,subject,questions').eq('id',Number(r.exam_id)).maybeSingle();
+    if(ex.error) throw ex.error;
+    const baseQuestions=Array.isArray(ex.data?.questions)?ex.data.questions:[];
+
+    let attempts=[];
+    try{
+      const ar=await client.rpc('admin_list_exam_attempts');
+      if(!ar.error) attempts=ar.data||[];
+    }catch(_e){}
+    const attempt=attempts.find(a=>Number(a.exam_id)===Number(r.exam_id)&&String(a.cedula)===String(r.cedula));
+    let order=attempt?.question_order;
+    if(typeof order==='string'){
+      try{order=JSON.parse(order);}catch(_e){order=null;}
+    }
+    const questions=Array.isArray(order)&&order.length
+      ? order.map(i=>baseQuestions[Number(i)]).filter(Boolean)
+      : baseQuestions;
+    let answers=r.answers;
+    if(typeof answers==='string'){
+      try{answers=JSON.parse(answers);}catch(_e){answers=[];}
+    }
+    if(!Array.isArray(answers)) answers=[];
+
+    let html=`<div style="padding:12px;background:#eef6ff;border-radius:12px;margin-bottom:16px"><b>${escapeExamHtml(r.student_name||r.cedula)}</b> · Cédula ${escapeExamHtml(r.cedula)} · Grupo ${escapeExamHtml(r.group_name||'')}<br><b>${escapeExamHtml(ex.data?.title||'Evaluación')}</b> · Nota ${Number(r.grade??r.score??0).toFixed(2)}</div>`;
+    questions.forEach((q,i)=>{
+      const ans=answers[i];
+      html+=`<div style="border:1px solid #dbe5ef;border-radius:12px;padding:14px;margin:12px 0"><div style="font-weight:900;margin-bottom:9px">${i+1}. ${escapeExamHtml(q?.q||'Pregunta')}</div>`;
+      if(q?.type==='code'){
+        html+=`<div style="font-size:12px;font-weight:800;color:#475569">RESPUESTA DEL ESTUDIANTE</div><pre style="white-space:pre-wrap;background:#111827;color:#f8fafc;padding:12px;border-radius:9px;overflow:auto">${escapeExamHtml(ans||'Sin respuesta')}</pre>`;
+      }else{
+        const opts=Array.isArray(q?.o)?q.o:[];
+        const idx=Number(ans);
+        const chosen=Number.isInteger(idx)&&idx>=0&&idx<opts.length?opts[idx]:ans;
+        const correctIdx=Number(q?.a);
+        const correct=Number.isInteger(correctIdx)&&correctIdx>=0&&correctIdx<opts.length?opts[correctIdx]:'';
+        html+=`<div><b>Respuesta:</b> ${escapeExamHtml(chosen??'Sin respuesta')}</div>`;
+        if(correct!=='') html+=`<div style="margin-top:6px;color:#166534"><b>Respuesta correcta:</b> ${escapeExamHtml(correct)}</div>`;
+      }
+      html+='</div>';
+    });
+    content.innerHTML=html;
+  }catch(e){
+    console.error('openFullExam',e);
+    content.innerHTML='<div style="padding:14px;background:#fdecec;color:#991b1b;border-radius:10px">No se pudo abrir el examen completo: '+escapeExamHtml(e?.message||e)+'</div>';
+  }
+}
