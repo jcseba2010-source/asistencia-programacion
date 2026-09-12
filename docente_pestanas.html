@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel docente · Vista por pestañas</title>
+<style>
+:root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--line:#dbe5ef;--text:#14213d;--muted:#64748b}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+.shell{height:100%;display:flex;flex-direction:column}
+.topbar{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 3px 12px #0002}
+.title{font-size:20px;font-weight:900}.subtitle{font-size:12px;opacity:.8;margin-top:3px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line)}
+.tab{border:1px solid var(--line);background:#fff;color:var(--text);padding:11px 16px;border-radius:11px;font-weight:800;cursor:pointer}
+.tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.status{padding:8px 16px;background:#eef6ff;color:#174a8b;font-size:12px;border-bottom:1px solid #d7e7ff}
+.framewrap{flex:1;min-height:0}
+iframe{width:100%;height:100%;border:0;background:#fff}
+@media(max-width:700px){.topbar{align-items:flex-start;flex-direction:column}.tab{flex:1 1 45%;text-align:center}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div><div class="title">🎓 Panel Docente</div><div class="subtitle">Universidad de Pamplona · Vista organizada por módulos</div></div>
+    <div style="font-size:13px">Interfaz simplificada</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="grupos">👥 GRUPOS</button>
+    <button class="tab" data-tab="asistencias">✅ ASISTENCIAS</button>
+    <button class="tab" data-tab="examenes">📝 EXÁMENES</button>
+    <button class="tab" data-tab="reportes">📊 REPORTES / CONFIG.</button>
+    <button class="tab" data-tab="todo">🧩 VER TODO</button>
+  </div>
+  <div class="status" id="status">Cargando panel docente…</div>
+  <div class="framewrap"><iframe id="panel" src="docente.html" title="Panel docente"></iframe></div>
+</div>
+<script>
+const frame=document.getElementById('panel');
+const status=document.getElementById('status');
+let currentTab='grupos';
+
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
+
+function classify(card){
+  const id=norm(card.id);
+  const t=norm(card.innerText||card.textContent||'');
+  if(id.includes('evaluacion')||t.includes('evaluaciones')||t.includes('examen')||t.includes('calificaciones')||t.includes('intentos de evaluacion')) return 'examenes';
+  if(id.includes('reporte')||t.includes('reportes')||t.includes('nuevo semestre')||t.includes('configuracion')||t.includes('ubicacion del aula')||t.includes('profesor')||t.includes('docente')) return 'reportes';
+  if(t.includes('asistencia')||t.includes('codigo de clase')||t.includes('codigo qr')||t.includes('qr dinamico')||t.includes('clases activas')||t.includes('historial de clases')||t.includes('sesiones')) return 'asistencias';
+  if(t.includes('grupo')||t.includes('horario')||t.includes('estudiantes registrados')||t.includes('matricula')||t.includes('estudiantes')) return 'grupos';
+  return 'grupos';
+}
+
+function applyTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  let doc;
+  try{doc=frame.contentDocument||frame.contentWindow.document;}catch(e){status.textContent='No se pudo acceder al panel interno.';return;}
+  if(!doc||!doc.body)return;
+
+  const login=doc.querySelector('.login');
+  if(login && getComputedStyle(login).display!=='none'){
+    status.textContent='Inicia sesión en el panel docente. Después aparecerán las pestañas organizadas.';
+    return;
+  }
+
+  const cards=[...doc.querySelectorAll('main > section.card, main > div.card, main .card')]
+    .filter((el,i,a)=>a.indexOf(el)===i && !el.closest('.card .card'));
+
+  if(tab==='todo'){
+    cards.forEach(c=>c.style.display='');
+    status.textContent='Mostrando todas las secciones del panel.';
+    return;
+  }
+
+  let visible=0;
+  cards.forEach(card=>{
+    const cat=classify(card);
+    const show=cat===tab;
+    card.style.display=show?'':'none';
+    if(show)visible++;
+  });
+
+  // Mantener estadísticas superiores visibles si existen.
+  doc.querySelectorAll('main > .stats, main .stats').forEach(s=>s.style.display=(tab==='asistencias'||tab==='grupos')?'':'none');
+
+  const names={grupos:'Grupos y estudiantes',asistencias:'Asistencias y clases',examenes:'Exámenes y calificaciones',reportes:'Reportes y configuración'};
+  status.textContent=`${names[tab]} · ${visible} bloque(s) visibles`;
+  try{frame.contentWindow.scrollTo({top:0,behavior:'smooth'});}catch(e){}
+}
+
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>applyTab(btn.dataset.tab)));
+
+frame.addEventListener('load',()=>{
+  status.textContent='Panel cargado. Organizando información…';
+  setTimeout(()=>applyTab(currentTab),900);
+  setTimeout(()=>applyTab(currentTab),2200);
+  try{
+    const doc=frame.contentDocument||frame.contentWindow.document;
+    new MutationObserver(()=>{
+      clearTimeout(window.__tabRefresh);
+      window.__tabRefresh=setTimeout(()=>applyTab(currentTab),250);
+    }).observe(doc.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+  }catch(e){}
+});
+</script>
+</body>
+</html>
