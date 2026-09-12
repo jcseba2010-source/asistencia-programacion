@@ -145,6 +145,184 @@ footer{
 }
 </style>
 
+
+<style id="tema-institucional-estudiante-2026">
+:root{
+  --up-vinotinto:#7b1722;
+  --up-vinotinto-2:#981f2b;
+  --up-dorado:#d7a928;
+  --up-dorado-claro:#f6e7b2;
+  --up-blanco:#ffffff;
+  --up-fondo:#f7f5f3;
+  --up-texto:#2f2b2b;
+  --up-muted:#6b6363;
+  --up-line:#e6ddd8;
+}
+
+body{
+  color:var(--up-texto)!important;
+  background:
+    linear-gradient(rgba(255,255,255,.88),rgba(255,255,255,.88)),
+    var(--bg-image,none) center center/cover fixed no-repeat!important;
+}
+
+header{
+  background:linear-gradient(90deg,#68121b,var(--up-vinotinto),#5b0f17)!important;
+  border-bottom:4px solid var(--up-dorado)!important;
+  box-shadow:0 7px 22px rgba(72,8,17,.18)!important;
+}
+
+.brand{
+  color:#fff!important;
+  font-family:Georgia,serif!important;
+  letter-spacing:.3px;
+}
+
+.sub{color:#f7eecf!important;opacity:1!important}
+
+nav a{
+  color:#fff!important;
+  font-weight:700!important;
+  padding:9px 12px!important;
+  border-radius:10px!important;
+  transition:.2s ease!important;
+}
+nav a:hover{
+  background:rgba(215,169,40,.22)!important;
+  color:#fff7d6!important;
+}
+
+main{max-width:1180px!important;margin:28px auto!important}
+
+.hero,.card{
+  background:rgba(255,255,255,.96)!important;
+  border:1px solid #eadfda!important;
+  box-shadow:0 14px 34px rgba(70,28,25,.10)!important;
+  backdrop-filter:blur(7px);
+}
+
+.hero{
+  border-top:6px solid var(--up-dorado)!important;
+  text-align:center;
+}
+
+.hero h1{
+  color:var(--up-vinotinto)!important;
+  font-size:34px!important;
+  letter-spacing:-.3px;
+}
+
+.card{
+  border-radius:20px!important;
+  position:relative;
+  overflow:hidden;
+}
+
+.card:before{
+  content:"";
+  position:absolute;
+  left:0;top:0;right:0;height:5px;
+  background:linear-gradient(90deg,var(--up-vinotinto),var(--up-dorado))!important;
+}
+
+.card h2,.card h3{
+  color:var(--up-vinotinto)!important;
+}
+
+.muted{color:var(--up-muted)!important}
+
+label{color:#4f3436!important}
+
+input,select{
+  border:1px solid #cdbdb7!important;
+  background:#fff!important;
+  color:var(--up-texto)!important;
+  box-shadow:inset 0 1px 2px rgba(88,32,34,.05)!important;
+}
+
+input:focus,select:focus{
+  outline:none!important;
+  border-color:var(--up-vinotinto)!important;
+  box-shadow:0 0 0 3px rgba(123,23,34,.14)!important;
+}
+
+button{
+  background:linear-gradient(90deg,var(--up-vinotinto),var(--up-vinotinto-2))!important;
+  border-radius:11px!important;
+  box-shadow:0 8px 18px rgba(123,23,34,.18)!important;
+  color:#fff!important;
+}
+
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 24px rgba(123,23,34,.25)!important;
+}
+
+.secondary{
+  background:#fff!important;
+  color:var(--up-vinotinto)!important;
+  border:1px solid var(--up-line)!important;
+  box-shadow:none!important;
+}
+
+.notice{
+  background:linear-gradient(90deg,#fff8e6,#fff)!important;
+  border:1px solid #ead79f!important;
+  color:#654f1a!important;
+}
+
+.signature-box{
+  border-color:var(--up-vinotinto)!important;
+  background:#fff9f8!important;
+}
+
+.signature-box canvas{
+  border-color:#cdbdb7!important;
+}
+
+footer{
+  background:linear-gradient(90deg,#68121b,var(--up-vinotinto))!important;
+  color:#fff!important;
+  margin-top:35px;
+  border-top:4px solid var(--up-dorado)!important;
+}
+
+.teacher-band{
+  background:linear-gradient(90deg,#7b1722,#9a2632)!important;
+  border-bottom:2px solid var(--up-dorado)!important;
+}
+
+.institution-pill{
+  background:rgba(255,255,255,.96)!important;
+  border:1px solid #eadfda!important;
+  color:var(--up-vinotinto)!important;
+  box-shadow:0 8px 22px rgba(70,28,25,.08)!important;
+}
+
+.quote-side{
+  color:var(--up-vinotinto)!important;
+}
+
+a[href="evaluacion.html"]{
+  background:linear-gradient(90deg,var(--up-vinotinto),var(--up-vinotinto-2))!important;
+  border:1px solid var(--up-dorado)!important;
+  box-shadow:0 8px 18px rgba(123,23,34,.16)!important;
+}
+
+.success{
+  border-left:5px solid #2f8a4c!important;
+}
+
+.error{
+  border-left:5px solid #b42318!important;
+}
+
+@media(max-width:800px){
+  .hero h1{font-size:29px!important}
+  nav a{display:inline-block;margin-top:6px!important}
+}
+</style>
+
 </head>
 <body>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Sistema de Control Virtual de Asistencia</div></div></div>
