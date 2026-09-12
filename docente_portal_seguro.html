@@ -6,20 +6,25 @@
 <title>Ingreso Docente · Universidad de Pamplona</title>
 <style>
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#1b0d0d;color:#fff}
-.hero{min-height:100vh;background:url('leon.png') center center/cover no-repeat;position:relative;display:flex;align-items:flex-end;justify-content:center;padding:24px}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(35,0,0,.48),rgba(35,0,0,.04) 46%,rgba(35,0,0,.12))}
-.access{position:relative;z-index:2;margin-bottom:4vh;background:rgba(122,18,25,.94);border:2px solid #e4bd54;border-radius:16px;box-shadow:0 12px 34px #0008;padding:18px 24px;text-align:center;max-width:560px;width:min(92vw,560px)}
-.access h1{margin:0 0 6px;font-family:Georgia,serif;font-size:30px}.access p{margin:0 0 14px;font-size:14px;line-height:1.45}.btn{display:inline-block;text-decoration:none;background:#fff;color:#8f2529;font-weight:900;padding:13px 24px;border-radius:9px;border:2px solid #fff;font-size:16px}.btn:hover{background:#f7e8e8}.mini{font-size:11px;opacity:.9;margin-top:10px}
-@media(max-width:700px){.hero{background-position:center top;padding:14px;align-items:flex-end}.access{padding:14px 16px;margin-bottom:2vh}.access h1{font-size:24px}}
+.hero{min-height:100vh;background:url('leon.png') center center/cover no-repeat;position:relative;display:flex;align-items:flex-end;justify-content:center;padding:22px}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(35,0,0,.55),rgba(35,0,0,.02) 50%,rgba(35,0,0,.10))}
+.access{position:relative;z-index:2;margin-bottom:3vh;background:rgba(122,18,25,.95);border:2px solid #e4bd54;border-radius:15px;box-shadow:0 12px 34px #0008;padding:18px 28px 17px;text-align:center;width:min(92vw,520px)}
+.uni{font-family:Georgia,serif;font-weight:800;letter-spacing:.8px;color:#f4d77a;font-size:16px;margin-bottom:7px;text-transform:uppercase}
+h1{margin:0 0 9px;font-family:Georgia,serif;font-size:28px}.name{font-size:20px;font-weight:900;margin:3px 0}.role{font-size:15px;font-weight:700;color:#f4d77a;margin:4px 0 10px}.system{font-size:13px;margin:0 0 4px}.year{font-size:16px;font-weight:900;margin:4px 0 14px;color:#fff}.btn{display:inline-block;text-decoration:none;background:#fff;color:#8f2529;font-weight:900;padding:12px 22px;border-radius:8px;border:2px solid #fff;font-size:14px;box-shadow:0 4px 12px #0003}.btn:hover{background:#f7e8e8}.mini{font-size:10.5px;opacity:.9;margin-top:9px;line-height:1.35}
+@media(max-width:700px){.hero{background-position:center top;padding:12px}.access{padding:14px 15px;margin-bottom:2vh}.uni{font-size:13px}h1{font-size:23px}.name{font-size:17px}.role{font-size:13px}.btn{font-size:13px;padding:11px 16px}}
 </style>
 </head>
 <body>
 <main class="hero">
-  <section class="access" aria-label="Acceso seguro al panel docente">
+  <section class="access" aria-label="Acceso al panel docente">
+    <div class="uni">Universidad de Pamplona</div>
     <h1>Ingreso Docente</h1>
-    <p>Universidad de Pamplona · Sistema de Asistencia y Evaluación</p>
+    <div class="name">Mg. Julio Cesar Contreras Vargas</div>
+    <div class="role">Docente Ocasional</div>
+    <p class="system">Sistema de Asistencia y Evaluación</p>
+    <div class="year">2026</div>
     <a class="btn" href="docente_pestanas.html">INGRESAR AL PANEL DOCENTE</a>
-    <div class="mini">El acceso real y la validación de la cuenta se realizan en el sistema institucional.</div>
+    <div class="mini">El acceso y la validación de la cuenta se realizan en el sistema institucional.</div>
   </section>
 </main>
 </body>
