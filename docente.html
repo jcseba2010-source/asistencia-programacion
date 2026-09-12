@@ -16,6 +16,17 @@ button{border:0;border-radius:9px;padding:11px 14px;background:var(--blue);color
 .filters{display:grid;grid-template-columns:1fr 1fr 2fr auto;gap:8px;align-items:end}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}th,td{padding:9px;border-bottom:1px solid var(--line);text-align:left}th{background:#f8fafc}.session{padding:12px 0;border-bottom:1px solid var(--line)}.pill{font-size:11px;background:#e7f8ed;color:var(--ok);padding:4px 7px;border-radius:10px;margin-left:5px}
 .hidden{display:none!important}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:18px}
 @media(max-width:900px){.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}.filters button{width:100%}}@media(max-width:600px){.stats{grid-template-columns:1fr}.top{display:block}}
+
+.edit-student-modal{position:fixed;inset:0;background:rgba(7,25,54,.58);display:none;align-items:center;justify-content:center;z-index:99999;padding:18px}
+.edit-student-modal.open{display:flex}
+.edit-student-box{width:min(720px,96vw);max-height:92vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:24px}
+.edit-student-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:8px}
+.edit-student-head h2{margin:0;color:var(--navy)}
+.edit-student-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.edit-student-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.edit-student-note{background:#eef6ff;border-left:4px solid var(--blue);padding:10px 12px;border-radius:9px;margin:10px 0 14px}
+@media(max-width:700px){.edit-student-grid{grid-template-columns:1fr}}
+
 </style>
 
 
@@ -767,10 +778,7 @@ body:not(.login-mode) #app .top h1{
   </div>
 </section>
 <section id="app" class="hidden">
-<div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
-<button class="secondary" type="button" onclick="window.open('programacion1.html','_blank')">📘 Material Programación I</button>
-<button class="secondary" onclick="logout()">Cerrar sesión</button>
-</div></div>
+<div class="top"><div><h1>Panel del Docente</h1><div class="muted">Administración de asistencia · Programación I y II</div></div><div><button class="secondary" onclick="logout()">Cerrar sesión</button></div></div>
 <section class="stats"><div class="stat"><span>Estudiantes registrados</span><b id="totalStudents">0</b></div><div class="stat"><span>Presentes hoy</span><b id="presentes">0</b></div><div class="stat"><span>Clases activas</span><b id="activas">0</b></div><div class="stat"><span>Registros totales</span><b id="totalReg">0</b></div></section>
 <section class="card horario-card" id="miHorario">
 <div class="horario-head"><div><h2 style="margin:0">📅 Mi Horario</h2><p class="muted" style="margin:5px 0 0">Horario oficial · Universidad de Pamplona</p></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1588,6 +1596,7 @@ function renderStudents(){
         <td>${esc(groups)}</td>
         <td>${new Date(x.created_at).toLocaleString("es-CO")}</td>
         <td>
+          <button class="secondary" type="button" data-id="${esc(x.id)}" onclick="editStudentAdmin(this.dataset.id)">✏️ EDITAR</button>
           ${studentFilterState.group?`<button class="secondary" type="button" data-cedula="${esc(x.cedula)}" data-group="${esc(studentFilterState.group)}" data-subject="${esc(studentFilterState.subject||subjectForGroup(studentFilterState.group))}" onclick="removeStudentFromGroup(this.dataset.cedula,this.dataset.group,this.dataset.subject)">QUITAR DEL GRUPO</button>`:''}
           <button class="danger" data-cedula="${esc(x.cedula)}" onclick="deleteStudentAdmin(this.dataset.cedula)">Borrar</button>
         </td>
@@ -2051,6 +2060,82 @@ async function createStudentAdmin(){
  await renderAll();
 }
 
+
+function editStudentAdmin(id){
+  const st=(db.students||[]).find(s=>String(s.id)===String(id));
+  if(!st){ alert("No se encontró el estudiante."); return; }
+
+  document.getElementById("editStudentId").value=st.id ?? "";
+  document.getElementById("editStudentOldCedula").value=st.cedula ?? "";
+  document.getElementById("editStudentName").value=st.name ?? "";
+  document.getElementById("editStudentCedula").value=st.cedula ?? "";
+  document.getElementById("editStudentCelular").value=st.celular ?? "";
+  document.getElementById("editStudentCarrera").value=st.carrera ?? "";
+  document.getElementById("editStudentSemestre").value=st.semestre ?? "";
+  document.getElementById("editStudentCorreo").value=st.correo ?? "";
+
+  const modal=document.getElementById("editStudentModal");
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+}
+
+function closeStudentEdit(){
+  const modal=document.getElementById("editStudentModal");
+  if(!modal)return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden","true");
+}
+
+async function saveStudentEdit(){
+  const id=Number(document.getElementById("editStudentId").value);
+  const oldCedula=document.getElementById("editStudentOldCedula").value.trim();
+  const payload={
+    p_id:id,
+    p_old_cedula:oldCedula,
+    p_name:document.getElementById("editStudentName").value.trim(),
+    p_cedula:document.getElementById("editStudentCedula").value.trim(),
+    p_celular:document.getElementById("editStudentCelular").value.trim(),
+    p_carrera:document.getElementById("editStudentCarrera").value.trim(),
+    p_semestre:document.getElementById("editStudentSemestre").value
+      ? Number(document.getElementById("editStudentSemestre").value)
+      : null,
+    p_correo:document.getElementById("editStudentCorreo").value.trim()
+  };
+
+  if(!payload.p_name || !payload.p_cedula){
+    alert("Nombre y cédula son obligatorios.");
+    return;
+  }
+
+  if(payload.p_cedula!==oldCedula){
+    const ok=confirm(
+      "Va a cambiar la cédula de "+oldCedula+" a "+payload.p_cedula+
+      ".\n\nEl sistema intentará actualizar también los registros relacionados del estudiante. ¿Continuar?"
+    );
+    if(!ok)return;
+  }
+
+  const {data,error}=await client.rpc("admin_update_student_record",payload);
+  if(error){
+    alert(
+      "No se pudo guardar la edición.\n\n"+
+      error.message+
+      "\n\nSi aún no instaló la función SQL de edición, ejecute el archivo SQL incluido en el paquete."
+    );
+    return;
+  }
+
+  const r=Array.isArray(data)?data[0]:data;
+  if(r && r.ok===false){
+    alert(r.message||"No se pudo actualizar el estudiante.");
+    return;
+  }
+
+  closeStudentEdit();
+  alert((r&&r.message)||"Estudiante actualizado correctamente.");
+  await renderAll();
+}
+
 async function deleteStudentAdmin(ced){
  if(!confirm(`¿Borrar al estudiante con cédula ${ced} y todas sus asistencias?`))return;
  const {data,error}=await client.rpc("admin_delete_student",{p_cedula:String(ced)});
@@ -2447,5 +2532,51 @@ async function eliminarEstudianteCompleto(cedula,nombre){
   });
 })();
 </script>
+
+
+<div id="editStudentModal" class="edit-student-modal" aria-hidden="true">
+  <div class="edit-student-box">
+    <div class="edit-student-head">
+      <h2>✏️ Editar estudiante</h2>
+      <button type="button" class="secondary" onclick="closeStudentEdit()">✕ Cerrar</button>
+    </div>
+    <div class="edit-student-note">
+      Puede corregir los datos del estudiante y guardar el registro. 
+      <b>Los grupos/matrículas no se cambian desde aquí</b>, para conservar la lógica actual de inscripción.
+    </div>
+    <input type="hidden" id="editStudentId">
+    <input type="hidden" id="editStudentOldCedula">
+    <div class="edit-student-grid">
+      <div>
+        <label>Nombre completo</label>
+        <input id="editStudentName" type="text">
+      </div>
+      <div>
+        <label>Cédula</label>
+        <input id="editStudentCedula" type="text">
+      </div>
+      <div>
+        <label>Celular</label>
+        <input id="editStudentCelular" type="text">
+      </div>
+      <div>
+        <label>Carrera</label>
+        <input id="editStudentCarrera" type="text">
+      </div>
+      <div>
+        <label>Semestre</label>
+        <input id="editStudentSemestre" type="number" min="1" max="20">
+      </div>
+      <div>
+        <label>Correo</label>
+        <input id="editStudentCorreo" type="email">
+      </div>
+    </div>
+    <div class="edit-student-actions">
+      <button type="button" class="secondary" onclick="closeStudentEdit()">Cancelar</button>
+      <button type="button" onclick="saveStudentEdit()">💾 GUARDAR CAMBIOS</button>
+    </div>
+  </div>
+</div>
 
 </body></html>
