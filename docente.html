@@ -900,17 +900,8 @@ const togglePasswordEl=document.getElementById("togglePassword");
 if(togglePasswordEl)togglePasswordEl.addEventListener("click",()=>{
   const p=document.getElementById("password"); if(!p)return; p.type=p.type==="password"?"text":"password";
 });
-const forgotPasswordEl=document.getElementById("forgotPassword");
-if(forgotPasswordEl)forgotPasswordEl.addEventListener("click",async()=>{
-  const correo=(document.getElementById("email")?.value||"").trim();
-  if(!correo){showErr("loginErr","Escribe primero tu correo para solicitar recuperación.");return;}
-  try{
-    if(!client) client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
-    const {{error}}=await client.auth.resetPasswordForEmail(correo);
-    if(error)throw error;
-    showErr("loginErr","Se envió el enlace de recuperación al correo indicado.");
-  }catch(e){showErr("loginErr","No fue posible enviar la recuperación: "+(e?.message||e));}
-});
+
+// Recuperación de contraseña desactivada en esta versión.
 async function showApp(){
 const {data}=await client.auth.getUser();
 if(!data.user)return;
