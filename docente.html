@@ -816,10 +816,83 @@ function renderExams(){
  }
 }
 
-function openCodeReview(reviewId,nombre){const r=(db.examCodeReviews||[]).find(x=>Number(x.review_id)===Number(reviewId));if(!r)return alert("No se encontró la revisión.");currentCodeReview=r;document.getElementById("codeReviewStudent").textContent=`${nombre||r.cedula} · Cédula ${r.cedula} · Grupo ${r.group_name||"—"}`;p23Question.textContent=r.p23_question||"Pregunta 23";p23Answer.textContent=r.p23_answer||"(Sin respuesta)";p24Question.textContent=r.p24_question||"Pregunta 24";p24Answer.textContent=r.p24_answer||"(Sin respuesta)";p25Question.textContent=r.p25_question||"Pregunta 25";p25Answer.textContent=r.p25_answer||"(Sin respuesta)";p23Score.value=Number(r.p23_score||0);p24Score.value=Number(r.p24_score||0);p25Score.value=Number(r.p25_score||0);reviewObservation.value=r.teacher_observation||"";autoPoints.textContent=Number(r.automatic_points||0).toFixed(2);calcManualGrade();codeReviewModal.classList.remove("hidden");}
-function closeCodeReview(){currentCodeReview=null;codeReviewModal.classList.add("hidden")}
-function calcManualGrade(){const s23=Math.max(0,Math.min(.75,Number(p23Score.value||0))),s24=Math.max(0,Math.min(1,Number(p24Score.value||0))),s25=Math.max(0,Math.min(1.25,Number(p25Score.value||0)));const manual=s23+s24+s25,auto=Number(autoPoints.textContent||0);manualPoints.textContent=manual.toFixed(2);finalPoints.textContent=(auto+manual).toFixed(2);}
-async function saveCodeReview(){if(!currentCodeReview)return;const s23=Number(p23Score.value||0),s24=Number(p24Score.value||0),s25=Number(p25Score.value||0);if(s23<0||s23>.75)return alert("P23 debe estar entre 0 y 0.75.");if(s24<0||s24>1)return alert("P24 debe estar entre 0 y 1.00.");if(s25<0||s25>1.25)return alert("P25 debe estar entre 0 y 1.25.");const {data,error}=await client.rpc("admin_save_exam_code_review",{p_review_id:Number(currentCodeReview.review_id),p_p23_score:s23,p_p24_score:s24,p_p25_score:s25,p_observation:reviewObservation.value.trim()});if(error)return alert("No se pudo guardar: "+error.message);if(data?.ok===false)return alert(data.message||"No se pudo guardar.");alert(`Calificación guardada. Nota final: ${Number(data.final_grade||0).toFixed(2)} / 5.00`);closeCodeReview();await renderAll();}
+function byId(id){return document.getElementById(id);}
+
+function openCodeReview(reviewId,nombre){
+  try{
+    const r=(db.examCodeReviews||[]).find(x=>Number(x.review_id)===Number(reviewId));
+    if(!r)return alert("No se encontró la revisión.");
+    currentCodeReview=r;
+
+    byId("codeReviewStudent").textContent=`${nombre||r.cedula} · Cédula ${r.cedula} · Grupo ${r.group_name||"—"}`;
+    byId("p23Question").textContent=r.p23_question||"Pregunta 23";
+    byId("p23Answer").textContent=r.p23_answer||"(Sin respuesta)";
+    byId("p24Question").textContent=r.p24_question||"Pregunta 24";
+    byId("p24Answer").textContent=r.p24_answer||"(Sin respuesta)";
+    byId("p25Question").textContent=r.p25_question||"Pregunta 25";
+    byId("p25Answer").textContent=r.p25_answer||"(Sin respuesta)";
+
+    byId("p23Score").value=Number(r.p23_score||0);
+    byId("p24Score").value=Number(r.p24_score||0);
+    byId("p25Score").value=Number(r.p25_score||0);
+    byId("reviewObservation").value=r.teacher_observation||"";
+    byId("autoPoints").textContent=Number(r.automatic_points||0).toFixed(2);
+
+    calcManualGrade();
+    const modal=byId("codeReviewModal");
+    if(!modal)throw new Error("No se encontró la ventana de revisión.");
+    modal.classList.remove("hidden");
+    modal.style.display="block";
+  }catch(e){
+    console.error("openCodeReview",e);
+    alert("No se pudo abrir REVISAR CÓDIGO. Detalle: "+(e.message||e));
+  }
+}
+
+function closeCodeReview(){
+  currentCodeReview=null;
+  const modal=byId("codeReviewModal");
+  if(modal){
+    modal.classList.add("hidden");
+    modal.style.display="none";
+  }
+}
+
+function calcManualGrade(){
+  const s23=Math.max(0,Math.min(.75,Number(byId("p23Score")?.value||0)));
+  const s24=Math.max(0,Math.min(1,Number(byId("p24Score")?.value||0)));
+  const s25=Math.max(0,Math.min(1.25,Number(byId("p25Score")?.value||0)));
+  const manual=s23+s24+s25;
+  const auto=Number(byId("autoPoints")?.textContent||0);
+  byId("manualPoints").textContent=manual.toFixed(2);
+  byId("finalPoints").textContent=(auto+manual).toFixed(2);
+}
+
+async function saveCodeReview(){
+  if(!currentCodeReview)return;
+  const s23=Number(byId("p23Score")?.value||0);
+  const s24=Number(byId("p24Score")?.value||0);
+  const s25=Number(byId("p25Score")?.value||0);
+
+  if(s23<0||s23>.75)return alert("P23 debe estar entre 0 y 0.75.");
+  if(s24<0||s24>1)return alert("P24 debe estar entre 0 y 1.00.");
+  if(s25<0||s25>1.25)return alert("P25 debe estar entre 0 y 1.25.");
+
+  const {data,error}=await client.rpc("admin_save_exam_code_review",{
+    p_review_id:Number(currentCodeReview.review_id),
+    p23_score:s23,
+    p24_score:s24,
+    p25_score:s25,
+    p_observation:byId("reviewObservation")?.value.trim()||""
+  });
+
+  if(error)return alert("No se pudo guardar: "+error.message);
+  if(data?.ok===false)return alert(data.message||"No se pudo guardar.");
+
+  alert(`Calificación guardada. Nota final: ${Number(data.final_grade||0).toFixed(2)} / 5.00`);
+  closeCodeReview();
+  await renderAll();
+}
 
 async function publishExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;if(!exam_id)return alert('No hay examen disponible.');const {error}=await client.from('exam_publications').upsert({exam_id,group_name,active:true,published_at:new Date().toISOString()},{onConflict:'exam_id,group_name'});if(error)return alert(error.message);const ex=(db.exams||[]).find(x=>Number(x.id)===exam_id);alert('Evaluación publicada: '+(ex?.title||'Programación I')+' · Grupo '+group_name);await renderAll()}
 async function closeExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;const {error}=await client.from('exam_publications').update({active:false}).eq('exam_id',exam_id).eq('group_name',group_name);if(error)return alert(error.message);alert('Evaluación cerrada para el Grupo '+group_name);await renderAll()}
