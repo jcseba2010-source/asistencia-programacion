@@ -3,121 +3,82 @@ window.APP_CONFIG = {
   supabaseAnonKey: "sb_publishable_OWGtzbsF-jizCS9kf8cIlg_nrg7hLu6"
 };
 
-/*
- * Parche de compatibilidad para docente.html
- * Corrige el botón REVISAR CÓDIGO sin modificar el archivo principal.
- */
+/* Botón REVISAR CÓDIGO: evita que el nombre del estudiante rompa el onclick. */
 document.addEventListener("click", function (event) {
   const button = event.target.closest && event.target.closest("button[data-review]");
   if (!button) return;
-
   const reviewId = Number(button.dataset.review || 0);
   if (!reviewId) return;
-
   event.preventDefault();
   event.stopPropagation();
-  if (typeof event.stopImmediatePropagation === "function") {
-    event.stopImmediatePropagation();
-  }
+  if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
 
   const row = button.closest("tr");
   const cells = row ? row.querySelectorAll("td") : [];
   const studentName = cells.length > 1 ? cells[1].textContent.trim() : "";
-
   if (typeof window.openCodeReview !== "function") {
     alert("La ventana REVISAR CÓDIGO todavía no está disponible. Recarga la página e inténtalo nuevamente.");
     return;
   }
-
   window.openCodeReview(reviewId, studentName);
   setTimeout(renderCodeCorrections, 0);
 }, true);
 
-function correctionBox(title, text) {
+function codeCorrectionBox(title, code, note) {
   const box = document.createElement("div");
   box.className = "teacher-correction-box";
-  box.style.cssText = "margin-top:10px;padding:12px 14px;border:2px solid #16a34a;border-radius:10px;background:#f0fdf4;color:#14532d;white-space:pre-wrap;font-family:Arial,Helvetica,sans-serif;line-height:1.45";
+  box.style.cssText = "margin-top:12px;padding:14px;border:2px solid #16a34a;border-radius:12px;background:#f0fdf4;color:#14532d";
+
   const h = document.createElement("div");
-  h.style.cssText = "font-weight:800;margin-bottom:7px;color:#166534";
-  h.textContent = "✅ CORRECCIÓN / RESPUESTA ESPERADA · " + title;
-  const body = document.createElement("div");
-  body.textContent = text;
+  h.style.cssText = "font-weight:900;margin-bottom:9px;color:#166534;font-size:16px";
+  h.textContent = "✅ DESARROLLO CORRECTO EN PYTHON · " + title;
   box.appendChild(h);
-  box.appendChild(body);
+
+  if (note) {
+    const n = document.createElement("div");
+    n.style.cssText = "margin-bottom:9px;line-height:1.4";
+    n.textContent = note;
+    box.appendChild(n);
+  }
+
+  const pre = document.createElement("pre");
+  pre.style.cssText = "margin:0;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:10px;overflow:auto;white-space:pre;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.45";
+  pre.textContent = code;
+  box.appendChild(pre);
   return box;
 }
 
 function renderCodeCorrections() {
   const r = (typeof currentCodeReview !== "undefined") ? currentCodeReview : null;
   if (!r) return;
-
   document.querySelectorAll(".teacher-correction-box").forEach(x => x.remove());
 
-  const corrections = {
-    p23: r.p23_correction || r.p23_expected || r.p23_solution ||
-`La respuesta debe mostrar las validaciones solicitadas antes de continuar el proceso.
-Debe usar condicionales y/o ciclos para impedir datos inválidos, repetir la captura cuando corresponda y conservar únicamente valores permitidos.
+  const p23 = `# P23 - Validaciones\n# Estructura de referencia para AUTO CLEAN\n\nwhile True:\n    print("TIPO DE VEHÍCULO")\n    print("1. Automóvil")\n    print("2. Camioneta")\n    tipo_vehiculo = int(input("Seleccione el tipo de vehículo: "))\n\n    if tipo_vehiculo == 1 or tipo_vehiculo == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")\n\nwhile True:\n    print("TIPO DE SERVICIO")\n    print("1. Servicio básico")\n    print("2. Servicio completo")\n    tipo_servicio = int(input("Seleccione el tipo de servicio: "))\n\n    if tipo_servicio == 1 or tipo_servicio == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")`;
 
-Para asignar el puntaje completo verifique:
-• que valide los datos indicados en el enunciado;
-• que no acepte valores fuera del rango permitido;
-• que el programa vuelva a solicitar el dato cuando sea incorrecto;
-• que la lógica permita continuar cuando el valor sea válido.`,
+  const p24 = `# P24 - Tarifas, condicional y descuento\n\n# La tarifa se determina según vehículo y servicio\nif tipo_vehiculo == 1:\n    if tipo_servicio == 1:\n        tarifa = tarifa_auto_basico\n    else:\n        tarifa = tarifa_auto_completo\nelse:\n    if tipo_servicio == 1:\n        tarifa = tarifa_camioneta_basico\n    else:\n        tarifa = tarifa_camioneta_completo\n\nvalor_inicial = tarifa\n\n# Condicional sencillo para aplicar descuento\nif aplica_descuento:\n    descuento = valor_inicial * porcentaje_descuento\nelse:\n    descuento = 0\n\nvalor_final = valor_inicial - descuento\n\nprint("Valor inicial:", valor_inicial)\nprint("Descuento:", descuento)\nprint("Valor final:", valor_final)`;
 
-    p24: r.p24_correction || r.p24_expected || r.p24_solution ||
-`La solución debe implementar correctamente la lógica de tarifas y el descuento solicitado mediante if / elif / else.
-
-Estructura esperada:
-1. Determinar la tarifa según la condición indicada.
-2. Calcular el valor inicial.
-3. Evaluar si cumple la condición para descuento.
-4. Aplicar el descuento únicamente cuando corresponda.
-5. Obtener y mostrar o retornar el valor final.
-
-Debe existir una diferencia clara entre el valor antes del descuento y el total final.`,
-
-    p25: r.p25_correction || r.p25_expected || r.p25_solution ||
-`La solución integral debe usar ciclos anidados para recorrer correctamente los niveles solicitados en AUTO CLEAN.
-
-Para el puntaje completo verifique:
-• ciclo externo para el primer nivel del proceso;
-• ciclo interno para repetir las operaciones de cada nivel;
-• contadores y acumuladores correctamente inicializados y actualizados;
-• reinicio de variables internas cuando comienza una nueva iteración externa;
-• cálculo de los totales generales;
-• informe final con los resultados acumulados.
-
-La estructura debe resolver el proceso completo, no solamente una iteración aislada.`
-  };
+  const p25 = `# P25 - Solución integral con ciclos anidados\n\ntotal_servicios = 0\ntotal_recaudado = 0\n\nfor dia in range(1, dias_trabajo + 1):\n    total_dia = 0\n\n    for servicio in range(1, servicios_por_dia + 1):\n        # En cada servicio se realizan las validaciones de P23\n        # y el cálculo de tarifa/descuento de P24.\n\n        valor_final = calcular_servicio()\n\n        total_servicios += 1\n        total_dia += valor_final\n        total_recaudado += valor_final\n\n    print("Día", dia, "- Total:", total_dia)\n\nprint("===== INFORME FINAL AUTO CLEAN =====")\nprint("Total de servicios:", total_servicios)\nprint("Total recaudado:", total_recaudado)`;
 
   const targets = [
-    ["p23Answer", "P23", corrections.p23],
-    ["p24Answer", "P24", corrections.p24],
-    ["p25Answer", "P25", corrections.p25]
+    ["p23Answer", "P23", p23, "Compare la respuesta del estudiante con esta estructura desarrollada de validación."],
+    ["p24Answer", "P24", p24, "La lógica debe calcular tarifa, aplicar la condición de descuento y obtener el valor final."],
+    ["p25Answer", "P25", p25, "Debe existir un ciclo externo, otro interno, acumuladores e informe final." ]
   ];
 
-  targets.forEach(([id, title, text]) => {
+  targets.forEach(([id, title, code, note]) => {
     const answer = document.getElementById(id);
     if (!answer) return;
-    answer.insertAdjacentElement("afterend", correctionBox(title, text));
+    answer.insertAdjacentElement("afterend", codeCorrectionBox(title, code, note));
   });
 }
 
-/*
- * Parche para GUARDAR CALIFICACIÓN.
- * La función existente en Supabase usa los parámetros:
- * p_review_id, p_p23_score, p_p24_score, p_p25_score, p_observation.
- * docente.html estaba enviando p23_score, p24_score y p25_score.
- */
+/* GUARDAR CALIFICACIÓN: usa los nombres reales de parámetros de Supabase. */
 document.addEventListener("click", async function (event) {
   const button = event.target.closest && event.target.closest('button[onclick*="saveCodeReview"]');
   if (!button) return;
-
   event.preventDefault();
   event.stopPropagation();
-  if (typeof event.stopImmediatePropagation === "function") {
-    event.stopImmediatePropagation();
-  }
+  if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
 
   try {
     if (typeof currentCodeReview === "undefined" || !currentCodeReview) {
@@ -149,21 +110,12 @@ document.addEventListener("click", async function (event) {
     button.disabled = false;
     button.textContent = oldText;
 
-    if (error) {
-      alert("No se pudo guardar: " + error.message);
-      return;
-    }
-
-    if (data?.ok === false) {
-      alert(data.message || "No se pudo guardar.");
-      return;
-    }
+    if (error) return alert("No se pudo guardar: " + error.message);
+    if (data?.ok === false) return alert(data.message || "No se pudo guardar.");
 
     alert(`Calificación guardada. Nota final: ${Number(data?.final_grade || 0).toFixed(2)} / 5.00`);
-
     if (typeof window.closeCodeReview === "function") window.closeCodeReview();
     if (typeof window.renderAll === "function") await window.renderAll();
-
   } catch (e) {
     console.error("saveCodeReview patch", e);
     alert("No se pudo guardar la calificación. Detalle: " + (e?.message || e));
