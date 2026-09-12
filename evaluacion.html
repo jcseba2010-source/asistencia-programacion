@@ -29,6 +29,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .hidden{display:none}
 .security{position:sticky;top:0;z-index:20;background:#fff4df;border:1px solid #f0d19a;border-radius:12px;padding:10px 14px;margin-bottom:15px;font-size:14px}
 .pill{display:inline-block;padding:4px 9px;border-radius:999px;background:#e8f0ff;color:#083b85;font-weight:800;font-size:12px}
+.timerbox{position:sticky;top:58px;z-index:19;background:#071936;color:white;border-radius:12px;padding:10px 14px;margin:10px 0;font-weight:800;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.timerbox.danger{background:#991b1b}.eps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.eps-card{background:#fff;border:1px solid #cfdff5;border-radius:12px;padding:12px}.tarifas{width:100%;border-collapse:collapse;margin:12px 0}.tarifas th,.tarifas td{border:1px solid #cbd5e1;padding:8px;text-align:center}.tarifas th{background:#e8f0ff}@media(max-width:700px){.eps-grid{grid-template-columns:1fr}}
 #lockscreen{position:fixed;inset:0;background:#071936f2;color:white;display:none;align-items:center;justify-content:center;z-index:9999;text-align:center;padding:30px}
 #lockscreen .box{max-width:600px}
 
@@ -62,6 +64,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 
 <section class="card hidden" id="exam">
 <div class="security">🔒 <b>Modo seguro activo</b> · Intento ligado a este dispositivo · Preguntas y opciones aleatorias · Cambios de pestaña: <span id="violations">0</span>/2</div>
+<div id="timerBox" class="timerbox hidden"><span>⏱️ Tiempo restante</span><span id="timerText">--:--</span></div>
 <h2 id="title"></h2>
 <p><b>Estudiante:</b> <span id="student"></span> · <b>Grupo:</b> <span id="group"></span> · <b>Asignatura:</b> <span id="subject"></span></p>
 <div id="caseStudy" class="casebox hidden"></div>
@@ -82,6 +85,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 const cfg=window.APP_CONFIG||{};
 const client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 let current=null, submitting=false, examStarted=false;
+let examTimer=null, examDeadline=null;
 let leaveIncidentOpen=false, leaveIncidentTimer=null;
 const MAX_VIOLATIONS=2;
 
@@ -241,6 +245,67 @@ function shuffleOptions(options){
     .sort(()=>Math.random()-0.5);
 }
 
+
+function isAutoCleanExam(data){
+  const t=String(data?.title||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return t.includes('auto clean') || (t.includes('parcial final') && t.includes('primer corte'));
+}
+
+function startExamTimer(minutes){
+  clearInterval(examTimer);
+  examDeadline=Date.now()+minutes*60*1000;
+  const box=document.getElementById('timerBox');
+  const txt=document.getElementById('timerText');
+  box.classList.remove('hidden','danger');
+  const tick=async()=>{
+    const left=Math.max(0,examDeadline-Date.now());
+    const total=Math.ceil(left/1000);
+    const mm=Math.floor(total/60);
+    const ss=total%60;
+    txt.textContent=String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+    if(left<=10*60*1000) box.classList.add('danger');
+    if(left<=0){
+      clearInterval(examTimer);
+      if(examStarted && !submitting){
+        alert('El tiempo terminó. La evaluación será enviada automáticamente.');
+        await submitExam(true);
+      }
+    }
+  };
+  tick();
+  examTimer=setInterval(tick,1000);
+}
+
+function renderAutoCleanCase(){
+  return `
+    <h3>🚗 Parcial Final · Centro de Lavado Vehicular “AUTO CLEAN”</h3>
+    <p>La empresa <b>AUTO CLEAN</b> desea automatizar el control de los vehículos que atiende. Trabaja durante <b>5 días</b>, cada día opera <b>4 horas</b> y en cada hora atiende <b>3 vehículos</b>.</p>
+    <div class="eps-grid">
+      <div class="eps-card"><b>ENTRADA</b><br>Tipo de vehículo<br>Tipo de servicio</div>
+      <div class="eps-card"><b>PROCESO</b><br>Tarifa<br>Descuento<br>Conteos y recaudos</div>
+      <div class="eps-card"><b>SALIDA</b><br>Cantidades<br>Recaudos<br>Informe final</div>
+    </div>
+    <p><b>Tipo de vehículo:</b> 1=Moto · 2=Automóvil · 3=Camioneta<br>
+       <b>Tipo de servicio:</b> 1=Lavado básico · 2=Lavado completo</p>
+    <table class="tarifas">
+      <tr><th>Vehículo</th><th>Básico</th><th>Completo</th></tr>
+      <tr><td>Moto</td><td>$8.000</td><td>$12.000</td></tr>
+      <tr><td>Automóvil</td><td>$15.000</td><td>$22.000</td></tr>
+      <tr><td>Camioneta</td><td>$20.000</td><td>$30.000</td></tr>
+    </table>
+    <div class="mainmenu"><b>REGLAS</b><br>
+      • Validar vehículo (1–3) y servicio (1–2) usando <b>while</b>.<br>
+      • Si el servicio vale más de $25.000, mostrar <b>“Servicio de categoría premium”</b> usando un condicional sencillo.<br>
+      • Si el servicio es completo y el vehículo es Automóvil o Camioneta, aplicar <b>5% de descuento</b> usando una decisión doble.<br>
+      • Determinar tarifas mediante <b>if / elif / else</b>.<br>
+      • Controlar <b>5 días → 4 horas por día → 3 vehículos por hora</b> mediante ciclos anidados.<br>
+      • Contar motos, automóviles, camionetas, lavados básicos y completos.<br>
+      • Acumular recaudo por tipo de vehículo, descuentos y recaudo total.
+    </div>
+    <div class="exammeta"><b>Modalidad:</b> evaluación virtual segura · Tiempo: 90 minutos · Una sola entrega. Las preguntas abiertas y de código se conservan para revisión docente.</div>
+  `;
+}
+
 async function loadExam(){
   const c=document.getElementById('cedula').value.trim();
   if(!c)return message('Escribe tu cédula.');
@@ -255,6 +320,7 @@ async function loadExam(){
     }
     current=data;
     const isFunciones = String(data.title||'').toLowerCase().includes('revisión de conocimientos de funciones') || String(data.title||'').toLowerCase().includes('revision de conocimientos de funciones');
+    const isAutoClean = isAutoCleanExam(data);
     const subject = data.subject || (isFunciones ? 'Programación II' : 'Programación I');
     document.getElementById('mainHeader').textContent='📝 Evaluación segura · '+subject;
     document.title='Evaluación segura · '+subject;
@@ -264,7 +330,11 @@ async function loadExam(){
     document.getElementById('subject').textContent=subject;
 
     const caseStudy=document.getElementById('caseStudy');
-    if(isFunciones){
+    if(isAutoClean){
+      caseStudy.classList.remove('hidden');
+      caseStudy.innerHTML=renderAutoCleanCase();
+      startExamTimer(90);
+    }else if(isFunciones){
       caseStudy.classList.remove('hidden');
       caseStudy.innerHTML=`
         <h3>Ejercicio: Almacén La Fortuna</h3>
@@ -303,7 +373,7 @@ async function loadExam(){
     document.getElementById('questions').innerHTML=(Array.isArray(data.questions)?data.questions:[]).map((x,i)=>{
       if(x.type==='code'){
         return `<div class="q code-question">
-          <span class="code-badge">ESCRITURA DE CÓDIGO PYTHON · 0.5 puntos</span>
+          <span class="code-badge">RESPUESTA ABIERTA / CÓDIGO PYTHON</span>
           <b>${i+1}. ${escapeHtml(x.q)}</b>
           <div class="code-description">${escapeHtml(x.description||'')}</div>
           <textarea class="code-answer" name="q${i}" spellcheck="false" placeholder="${escapeHtml(x.starter||'# Escriba aquí su solución')}"></textarea>
@@ -368,7 +438,8 @@ async function submitExam(auto=false){
     document.getElementById('exam').classList.add('hidden');
     document.getElementById('lockscreen').style.display='none';
     document.getElementById('done').classList.remove('hidden');
-    document.getElementById('done').innerHTML=`<div class="ok"><h2>✅ Evaluación enviada</h2><p>${escapeHtml(data.message)}</p><p>Las preguntas 1–22 se califican automáticamente. Las preguntas 23–25 quedan pendientes de revisión docente.</p></div>`;
+    clearInterval(examTimer);
+    document.getElementById('done').innerHTML=`<div class="ok"><h2>✅ Evaluación enviada</h2><p>${escapeHtml(data.message)}</p><p>${isAutoCleanExam(current)?'Las respuestas abiertas y el código quedan guardados para revisión docente.':'Las preguntas objetivas se califican automáticamente y las preguntas de construcción quedan para revisión docente.'}</p></div>`;
     if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   }catch(e){
     alert(e.message||'No fue posible enviar la evaluación.');
