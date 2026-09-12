@@ -49,27 +49,43 @@ function codeCorrectionBox(title, code, note) {
   return box;
 }
 
+function getWrittenCorrection(questionText){
+  const t=String(questionText||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(t.includes('valida') || t.includes('tipo de vehiculo')){
+    return {
+      qno:23,
+      title:'P23 - Validaciones',
+      code:`while True:\n    print("TIPO DE VEHÍCULO")\n    print("1. Automóvil")\n    print("2. Camioneta")\n    tipo_vehiculo = int(input("Seleccione el tipo de vehículo: "))\n\n    if tipo_vehiculo == 1 or tipo_vehiculo == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")\n\nwhile True:\n    print("TIPO DE SERVICIO")\n    print("1. Servicio básico")\n    print("2. Servicio completo")\n    tipo_servicio = int(input("Seleccione el tipo de servicio: "))\n\n    if tipo_servicio == 1 or tipo_servicio == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")`
+    };
+  }
+  if(t.includes('tarifa') || t.includes('descuento')){
+    return {
+      qno:24,
+      title:'P24 - Tarifas y descuento',
+      code:`if tipo_vehiculo == 1:\n    if tipo_servicio == 1:\n        tarifa = tarifa_auto_basico\n    else:\n        tarifa = tarifa_auto_completo\nelse:\n    if tipo_servicio == 1:\n        tarifa = tarifa_camioneta_basico\n    else:\n        tarifa = tarifa_camioneta_completo\n\nvalor_inicial = tarifa\n\nif aplica_descuento:\n    descuento = valor_inicial * porcentaje_descuento\nelse:\n    descuento = 0\n\nvalor_final = valor_inicial - descuento\n\nprint("Valor inicial:", valor_inicial)\nprint("Descuento:", descuento)\nprint("Valor final:", valor_final)`
+    };
+  }
+  return {
+    qno:25,
+    title:'P25 - Ciclos anidados e informe final',
+    code:`total_servicios = 0\ntotal_recaudado = 0\n\nfor dia in range(1, dias_trabajo + 1):\n    total_dia = 0\n\n    for servicio in range(1, servicios_por_dia + 1):\n        valor_final = calcular_servicio()\n        total_servicios += 1\n        total_dia += valor_final\n        total_recaudado += valor_final\n\n    print("Día", dia, "- Total:", total_dia)\n\nprint("===== INFORME FINAL AUTO CLEAN =====")\nprint("Total de servicios:", total_servicios)\nprint("Total recaudado:", total_recaudado)`
+  };
+}
+
 function renderCodeCorrections() {
   const r = (typeof currentCodeReview !== "undefined") ? currentCodeReview : null;
   if (!r) return;
   document.querySelectorAll(".teacher-correction-box").forEach(x => x.remove());
 
-  const p23 = `# P23 - Validaciones\n# Estructura de referencia para AUTO CLEAN\n\nwhile True:\n    print("TIPO DE VEHÍCULO")\n    print("1. Automóvil")\n    print("2. Camioneta")\n    tipo_vehiculo = int(input("Seleccione el tipo de vehículo: "))\n\n    if tipo_vehiculo == 1 or tipo_vehiculo == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")\n\nwhile True:\n    print("TIPO DE SERVICIO")\n    print("1. Servicio básico")\n    print("2. Servicio completo")\n    tipo_servicio = int(input("Seleccione el tipo de servicio: "))\n\n    if tipo_servicio == 1 or tipo_servicio == 2:\n        break\n    else:\n        print("Dato inválido. Intente nuevamente.")`;
-
-  const p24 = `# P24 - Tarifas, condicional y descuento\n\n# La tarifa se determina según vehículo y servicio\nif tipo_vehiculo == 1:\n    if tipo_servicio == 1:\n        tarifa = tarifa_auto_basico\n    else:\n        tarifa = tarifa_auto_completo\nelse:\n    if tipo_servicio == 1:\n        tarifa = tarifa_camioneta_basico\n    else:\n        tarifa = tarifa_camioneta_completo\n\nvalor_inicial = tarifa\n\n# Condicional sencillo para aplicar descuento\nif aplica_descuento:\n    descuento = valor_inicial * porcentaje_descuento\nelse:\n    descuento = 0\n\nvalor_final = valor_inicial - descuento\n\nprint("Valor inicial:", valor_inicial)\nprint("Descuento:", descuento)\nprint("Valor final:", valor_final)`;
-
-  const p25 = `# P25 - Solución integral con ciclos anidados\n\ntotal_servicios = 0\ntotal_recaudado = 0\n\nfor dia in range(1, dias_trabajo + 1):\n    total_dia = 0\n\n    for servicio in range(1, servicios_por_dia + 1):\n        # En cada servicio se realizan las validaciones de P23\n        # y el cálculo de tarifa/descuento de P24.\n\n        valor_final = calcular_servicio()\n\n        total_servicios += 1\n        total_dia += valor_final\n        total_recaudado += valor_final\n\n    print("Día", dia, "- Total:", total_dia)\n\nprint("===== INFORME FINAL AUTO CLEAN =====")\nprint("Total de servicios:", total_servicios)\nprint("Total recaudado:", total_recaudado)`;
-
-  const targets = [
-    ["p23Answer", "P23", p23, "Compare la respuesta del estudiante con esta estructura desarrollada de validación."],
-    ["p24Answer", "P24", p24, "La lógica debe calcular tarifa, aplicar la condición de descuento y obtener el valor final."],
-    ["p25Answer", "P25", p25, "Debe existir un ciclo externo, otro interno, acumuladores e informe final." ]
+  const refs=[
+    ["p23Answer",getWrittenCorrection('valida tipo de vehiculo')],
+    ["p24Answer",getWrittenCorrection('tarifa descuento')],
+    ["p25Answer",getWrittenCorrection('ciclos anidados')]
   ];
-
-  targets.forEach(([id, title, code, note]) => {
-    const answer = document.getElementById(id);
-    if (!answer) return;
-    answer.insertAdjacentElement("afterend", codeCorrectionBox(title, code, note));
+  refs.forEach(([id,c])=>{
+    const answer=document.getElementById(id);
+    if(!answer)return;
+    answer.insertAdjacentElement('afterend',codeCorrectionBox('P'+c.qno,c.code,'Compare la respuesta del estudiante con el desarrollo correcto.'));
   });
 }
 
@@ -329,20 +345,37 @@ async function openFullExam(resultId){
     }
     if(!Array.isArray(answers)) answers=[];
 
+    let photoRows=[];
+    try{
+      const pr=await client.rpc('admin_list_exam_code_photos');
+      if(!pr.error) photoRows=(pr.data||[]).filter(p=>Number(p.exam_id)===Number(r.exam_id)&&String(p.cedula)===String(r.cedula));
+    }catch(_e){}
+    const photoUrls={};
+    for(const p of photoRows){
+      const signed=await client.storage.from('exam-code-photos').createSignedUrl(p.storage_path,3600);
+      if(!signed.error && signed.data?.signedUrl) photoUrls[Number(p.question_no)]=signed.data.signedUrl;
+    }
+
     let html=`<div style="padding:12px;background:#eef6ff;border-radius:12px;margin-bottom:16px"><b>${escapeExamHtml(r.student_name||r.cedula)}</b> · Cédula ${escapeExamHtml(r.cedula)} · Grupo ${escapeExamHtml(r.group_name||'')}<br><b>${escapeExamHtml(ex.data?.title||'Evaluación')}</b> · Nota ${Number(r.grade??r.score??0).toFixed(2)}</div>`;
     questions.forEach((q,i)=>{
       const ans=answers[i];
       html+=`<div style="border:1px solid #dbe5ef;border-radius:12px;padding:14px;margin:12px 0"><div style="font-weight:900;margin-bottom:9px">${i+1}. ${escapeExamHtml(q?.q||'Pregunta')}</div>`;
+      if(q?.description) html+=`<div style="margin-bottom:10px;color:#475569">${escapeExamHtml(q.description)}</div>`;
       if(q?.type==='code'){
-        html+=`<div style="font-size:12px;font-weight:800;color:#475569">RESPUESTA DEL ESTUDIANTE</div><pre style="white-space:pre-wrap;background:#111827;color:#f8fafc;padding:12px;border-radius:9px;overflow:auto">${escapeExamHtml(ans||'Sin respuesta')}</pre>`;
+        const corr=getWrittenCorrection(q?.q||'');
+        html+=`<div style="font-size:12px;font-weight:800;color:#475569">✍️ RESPUESTA ESCRITA DEL ESTUDIANTE</div><pre style="white-space:pre-wrap;background:#111827;color:#f8fafc;padding:12px;border-radius:9px;overflow:auto">${escapeExamHtml(ans||'Sin respuesta')}</pre>`;
+        html+=`<div style="margin-top:12px;padding:12px;border:2px solid #16a34a;border-radius:10px;background:#f0fdf4"><div style="font-weight:900;color:#166534;margin-bottom:8px">✅ CORRECCIÓN / DESARROLLO CORRECTO · ${escapeExamHtml(corr.title)}</div><pre style="margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:9px;overflow:auto">${escapeExamHtml(corr.code)}</pre></div>`;
+        if(photoUrls[corr.qno]){
+          html+=`<div style="margin-top:12px;padding:12px;border:2px solid #2563eb;border-radius:10px;background:#eff6ff"><div style="font-weight:900;margin-bottom:8px">📷 DESARROLLO EN PAPEL · P${corr.qno}</div><a href="${photoUrls[corr.qno]}" target="_blank" rel="noopener" style="font-weight:800">🔎 ABRIR FOTO EN TAMAÑO GRANDE</a><br><img src="${photoUrls[corr.qno]}" alt="Desarrollo en papel P${corr.qno}" style="max-width:100%;max-height:420px;margin-top:10px;border-radius:10px"></div>`;
+        }
       }else{
         const opts=Array.isArray(q?.o)?q.o:[];
         const idx=Number(ans);
         const chosen=Number.isInteger(idx)&&idx>=0&&idx<opts.length?opts[idx]:ans;
         const correctIdx=Number(q?.a);
         const correct=Number.isInteger(correctIdx)&&correctIdx>=0&&correctIdx<opts.length?opts[correctIdx]:'';
-        html+=`<div><b>Respuesta:</b> ${escapeExamHtml(chosen??'Sin respuesta')}</div>`;
-        if(correct!=='') html+=`<div style="margin-top:6px;color:#166534"><b>Respuesta correcta:</b> ${escapeExamHtml(correct)}</div>`;
+        html+=`<div><b>Respuesta del estudiante:</b> ${escapeExamHtml(chosen??'Sin respuesta')}</div>`;
+        if(correct!=='') html+=`<div style="margin-top:6px;color:#166534"><b>✅ Respuesta correcta:</b> ${escapeExamHtml(correct)}</div>`;
       }
       html+='</div>';
     });
