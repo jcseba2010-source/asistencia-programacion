@@ -199,7 +199,7 @@ td{
 <!-- VERSION SOLO CLASES REALES -->
 <!-- REGLA ESTADO: 0-1 BIEN, 2 EN RIESGO, 3+ PIERDE -->
 <!-- NOTAS: (aciertos / total) * 5; aprueba >= 3.0 -->
-</head>
+<style id="auto-clean-review-style">#codeReviewModal{position:fixed;inset:0;background:#0009;z-index:100000;padding:20px;overflow:auto}#codeReviewModal.hidden{display:none!important}#codeReviewModal .review-wrap{max-width:1000px;margin:2vh auto;background:#fff;border-radius:18px;padding:22px}.review-answer{background:#111827;color:#f8fafc;border-radius:12px;padding:14px;white-space:pre-wrap;font-family:Consolas,monospace;min-height:100px;overflow:auto}.review-grid{display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:start;margin:16px 0;padding-bottom:16px;border-bottom:1px solid #e5e7eb}.review-score input{width:100%}.final-grade-box{background:#eef8f1;border:2px solid #86c99b;border-radius:12px;padding:14px;font-weight:800;margin:14px 0}@media(max-width:700px){.review-grid{grid-template-columns:1fr}}</style></head>
 <body><div id="v21banner" style="position:sticky;top:0;z-index:99999;background:#7c3aed;color:white;padding:12px 16px;text-align:center;font-weight:800;font-size:18px;border-bottom:4px solid #facc15">VERSIÓN 22 – BOTÓN PARA SIN RESULTADO</div>
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
 <div class="teacher-band" id="teacherBand" style="text-align:center;color:white;padding:10px 12px;font-weight:700">Docente: cargando...</div>
@@ -388,10 +388,11 @@ td{
 </div>
 
 <div id="firmaModal" class="hidden" style="position:fixed;inset:0;background:#0009;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px"><div style="background:white;max-width:620px;width:100%;padding:20px;border-radius:16px"><h3 style="margin-top:0">Firma de asistencia</h3><div id="firmaDatos" class="muted" style="margin-bottom:12px"></div><img id="firmaImagen" alt="Firma del estudiante" style="width:100%;max-height:300px;object-fit:contain;border:1px solid #cbd5e1;border-radius:10px;background:white"><button type="button" id="btnEliminarFirma" class="danger" onclick="eliminarFirmaActual()" style="width:100%;margin-top:12px">ELIMINAR FIRMA</button><button type="button" onclick="cerrarFirma()" style="width:100%;margin-top:8px">CERRAR</button></div></div>
-<script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<div id="codeReviewModal" class="hidden"><div class="review-wrap"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><h2 style="margin:0">🧑‍💻 Revisar código · AUTO CLEAN</h2><div id="codeReviewStudent" class="muted"></div></div><button type="button" class="secondary" onclick="closeCodeReview()">CERRAR</button></div><div class="final-grade-box">Automática: <span id="autoPoints">0.00</span>/2.00 · Manual: <span id="manualPoints">0.00</span>/3.00 · Nota final: <span id="finalPoints">0.00</span>/5.00</div><div class="review-grid"><div><h3>P23 · Validaciones</h3><div id="p23Question" class="muted"></div><div id="p23Answer" class="review-answer"></div></div><div class="review-score"><label>Puntaje / 0.75</label><input id="p23Score" type="number" min="0" max="0.75" step="0.05" value="0" oninput="calcManualGrade()"></div></div><div class="review-grid"><div><h3>P24 · Condicionales y descuento</h3><div id="p24Question" class="muted"></div><div id="p24Answer" class="review-answer"></div></div><div class="review-score"><label>Puntaje / 1.00</label><input id="p24Score" type="number" min="0" max="1" step="0.05" value="0" oninput="calcManualGrade()"></div></div><div class="review-grid"><div><h3>P25 · Solución integral y ciclos anidados</h3><div id="p25Question" class="muted"></div><div id="p25Answer" class="review-answer"></div></div><div class="review-score"><label>Puntaje / 1.25</label><input id="p25Score" type="number" min="0" max="1.25" step="0.05" value="0" oninput="calcManualGrade()"></div></div><label>Observación del docente</label><textarea id="reviewObservation" style="width:100%;min-height:100px;padding:12px;border:1px solid #cbd5e1;border-radius:10px"></textarea><button type="button" onclick="saveCodeReview()" style="width:100%;margin-top:14px">GUARDAR CALIFICACIÓN</button></div></div><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const cfg=window.APP_CONFIG||{};
-let client=null,db={sessions:[],records:[],students:[],groups:[]},active=null,teacherName="DOCENTE";
+let client=null,db={sessions:[],records:[],students:[],groups:[],examCodeReviews:[]},active=null,teacherName="DOCENTE";
+let currentCodeReview=null;
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase){ client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey); }
 function showErr(id,t){
  const e=document.getElementById(id);
@@ -712,6 +713,8 @@ async function fetchData(){
    if(ea.error) console.warn("Intentos de evaluación:",ea.error.message);
    else examAttempts=ea.data||[];
  }catch(e){ console.warn("Intentos de evaluación:",e); }
+ let examCodeReviews=[];
+ try{ const cr=await client.rpc("admin_list_exam_code_reviews"); if(cr.error) console.warn("Revisión código:",cr.error.message); else examCodeReviews=cr.data||[]; }catch(e){ console.warn("Revisión código:",e); }
  const cfgs=await client.from("app_settings").select("teacher_name,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
  if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
  if(en.error)throw en.error;if(gg.error)throw gg.error;if(ex.error)throw ex.error;if(ep.error)throw ep.error;if(er.error)throw er.error;if(cfgs.error)throw cfgs.error;
@@ -724,7 +727,7 @@ async function fetchData(){
      ? `Ubicación del aula configurada · radio ${cfgs.data.attendance_radius_m||100} m`
      : "Ubicación del aula: aún no configurada.";
  }
- db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[],exams:ex.data||[],examPublications:ep.data||[],examResults:er.data||[],examAttempts};
+ db={sessions:ss.data||[],records:aa.data||[],students:st.data||[],enrollments:en.data||[],groups:gg.data||[],exams:ex.data||[],examPublications:ep.data||[],examResults:er.data||[],examAttempts,examCodeReviews};
  active=db.sessions.find(x=>x.active&&new Date(x.expires_at)>new Date())||null;
 }
 async function renderAll(){
@@ -793,8 +796,13 @@ function renderExams(){
    const r=x.res,a=x.att;
    const nombre=x.st.name||x.st.nombre||r?.student_name||a?.student_name||'—';
    if(r){
-     const aciertos=Number(r.correct_answers||0), total=Number(r.total_questions||0), nota=total>0?(aciertos/total)*5:0;
-     return `<tr><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${nota>=3?'APROBÓ':'PERDIÓ'}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
+      const aciertos=Number(r.correct_answers||0), total=Number(r.total_questions||0);
+      const review=(db.examCodeReviews||[]).find(v=>Number(v.exam_id)===Number(examId)&&String(v.cedula)===String(x.ced));
+      const autoPts=total>0?(aciertos/total)*2:0;
+      const nota=review?.reviewed?Number(review.final_grade||0):autoPts;
+      const estado=review?.reviewed?(nota>=3?'APROBÓ':'PERDIÓ'):'PENDIENTE REVISIÓN';
+      const btnReview=review?`<button data-review="${Number(review.review_id)}" onclick="openCodeReview(Number(this.dataset.review),${JSON.stringify(nombre)})">REVISAR CÓDIGO</button>`:'<span class="muted">Sin respuestas abiertas</span>';
+      return `<tr><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>${aciertos}/${total}</td><td><b>${nota.toFixed(2)}</b></td><td><b>${estado}</b></td><td>${Number(r.security_violations||0)} salida(s) · ${esc(r.security_status||'NORMAL')}</td><td>${r.submitted_at?new Date(r.submitted_at).toLocaleString('es-CO'):'—'}</td><td>${btnReview}<br><button class="danger" onclick="deleteExamAttempt(${Number(r.id)})">Eliminar intento</button></td></tr>`;
    }
    if(a){
      return `<tr style="background:#fff7ed"><td>${i+1}</td><td>${esc(nombre)}</td><td>${esc(x.ced)}</td><td>${esc(grupo)}</td><td>—</td><td><b>—</b></td><td><b style="color:#b45309">INTENTO SIN RESULTADO</b></td><td>${Number(a.security_violations||0)} salida(s)</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`;
@@ -807,6 +815,12 @@ function renderExams(){
    attemptBody.innerHTML=(db.examAttempts||[]).filter(a=>sameGroup(a)).map((a,i)=>`<tr><td>${i+1}</td><td>${esc(a.student_name||'—')}</td><td>${esc(a.cedula)}</td><td>${esc(a.subject||'—')}</td><td>${esc(a.group_name)}</td><td><b>${a.active?'ABIERTO':'CERRADO'}</b></td><td>${Number(a.security_violations||0)}</td><td>${a.started_at?new Date(a.started_at).toLocaleString('es-CO'):'—'}</td><td><button class="danger" onclick="deleteExamAttemptById(${Number(a.attempt_id)})">Eliminar intento</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">No hay intentos de evaluación registrados para este grupo.</td></tr>';
  }
 }
+
+function openCodeReview(reviewId,nombre){const r=(db.examCodeReviews||[]).find(x=>Number(x.review_id)===Number(reviewId));if(!r)return alert("No se encontró la revisión.");currentCodeReview=r;document.getElementById("codeReviewStudent").textContent=`${nombre||r.cedula} · Cédula ${r.cedula} · Grupo ${r.group_name||"—"}`;p23Question.textContent=r.p23_question||"Pregunta 23";p23Answer.textContent=r.p23_answer||"(Sin respuesta)";p24Question.textContent=r.p24_question||"Pregunta 24";p24Answer.textContent=r.p24_answer||"(Sin respuesta)";p25Question.textContent=r.p25_question||"Pregunta 25";p25Answer.textContent=r.p25_answer||"(Sin respuesta)";p23Score.value=Number(r.p23_score||0);p24Score.value=Number(r.p24_score||0);p25Score.value=Number(r.p25_score||0);reviewObservation.value=r.teacher_observation||"";autoPoints.textContent=Number(r.automatic_points||0).toFixed(2);calcManualGrade();codeReviewModal.classList.remove("hidden");}
+function closeCodeReview(){currentCodeReview=null;codeReviewModal.classList.add("hidden")}
+function calcManualGrade(){const s23=Math.max(0,Math.min(.75,Number(p23Score.value||0))),s24=Math.max(0,Math.min(1,Number(p24Score.value||0))),s25=Math.max(0,Math.min(1.25,Number(p25Score.value||0)));const manual=s23+s24+s25,auto=Number(autoPoints.textContent||0);manualPoints.textContent=manual.toFixed(2);finalPoints.textContent=(auto+manual).toFixed(2);}
+async function saveCodeReview(){if(!currentCodeReview)return;const s23=Number(p23Score.value||0),s24=Number(p24Score.value||0),s25=Number(p25Score.value||0);if(s23<0||s23>.75)return alert("P23 debe estar entre 0 y 0.75.");if(s24<0||s24>1)return alert("P24 debe estar entre 0 y 1.00.");if(s25<0||s25>1.25)return alert("P25 debe estar entre 0 y 1.25.");const {data,error}=await client.rpc("admin_save_exam_code_review",{p_review_id:Number(currentCodeReview.review_id),p_p23_score:s23,p_p24_score:s24,p_p25_score:s25,p_observation:reviewObservation.value.trim()});if(error)return alert("No se pudo guardar: "+error.message);if(data?.ok===false)return alert(data.message||"No se pudo guardar.");alert(`Calificación guardada. Nota final: ${Number(data.final_grade||0).toFixed(2)} / 5.00`);closeCodeReview();await renderAll();}
+
 async function publishExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;if(!exam_id)return alert('No hay examen disponible.');const {error}=await client.from('exam_publications').upsert({exam_id,group_name,active:true,published_at:new Date().toISOString()},{onConflict:'exam_id,group_name'});if(error)return alert(error.message);const ex=(db.exams||[]).find(x=>Number(x.id)===exam_id);alert('Evaluación publicada: '+(ex?.title||'Programación I')+' · Grupo '+group_name);await renderAll()}
 async function closeExam(){const exam_id=Number(document.getElementById('examSelect').value),group_name=document.getElementById('examGroup').value;const {error}=await client.from('exam_publications').update({active:false}).eq('exam_id',exam_id).eq('group_name',group_name);if(error)return alert(error.message);alert('Evaluación cerrada para el Grupo '+group_name);await renderAll()}
 
