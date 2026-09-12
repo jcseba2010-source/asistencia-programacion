@@ -3,108 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Panel docente · Vista por pestañas</title>
+<title>Panel Docente · Universidad de Pamplona</title>
 <style>
-:root{--navy:#071936;--blue:#0b57d0;--bg:#f4f7fb;--line:#dbe5ef;--text:#14213d;--muted:#64748b}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-.shell{height:100%;display:flex;flex-direction:column}
-.topbar{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 3px 12px #0002}
-.title{font-size:20px;font-weight:900}.subtitle{font-size:12px;opacity:.8;margin-top:3px}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line)}
-.tab{border:1px solid var(--line);background:#fff;color:var(--text);padding:11px 16px;border-radius:11px;font-weight:800;cursor:pointer}
-.tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
-.status{padding:8px 16px;background:#eef6ff;color:#174a8b;font-size:12px;border-bottom:1px solid #d7e7ff}
-.framewrap{flex:1;min-height:0}
-iframe{width:100%;height:100%;border:0;background:#fff}
-@media(max-width:700px){.topbar{align-items:flex-start;flex-direction:column}.tab{flex:1 1 45%;text-align:center}}
+:root{--azul:#003366;--rojo:#ad3333;--gris:#dadada;--bg:#f6f7f9;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;--shadow:0 10px 26px rgba(0,51,102,.10)}
+*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+.app{height:100%;display:grid;grid-template-columns:258px 1fr;overflow:hidden}
+.sidebar{background:linear-gradient(180deg,var(--azul),#001f3f);color:#fff;padding:16px 14px;display:flex;flex-direction:column;gap:14px}
+.brand{display:flex;gap:11px;align-items:center;padding:5px 6px 16px;border-bottom:1px solid #ffffff30}.brand img{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:12px;padding:4px}.brand-title{font-size:17px;font-weight:900;line-height:1.15}.brand-sub{font-size:11px;opacity:.82;margin-top:4px}
+.menu{display:flex;flex-direction:column;gap:7px}.navbtn{width:100%;border:0;background:transparent;color:#eaf2fb;text-align:left;padding:13px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px}.navbtn:hover{background:#ffffff12}.navbtn.active{background:#fff;color:var(--azul);box-shadow:0 6px 16px #0002}.navicon{font-size:19px;width:24px;text-align:center}.navbtn[data-tab="examenes"].active{border-left:5px solid var(--rojo)}
+.sidecard{margin-top:auto;background:#ffffff10;border:1px solid #ffffff22;border-radius:13px;padding:12px;font-size:12px;line-height:1.45}.lion{display:flex;align-items:center;gap:10px}.lion img{width:50px;height:50px;object-fit:contain;background:#fff;border-radius:10px;padding:3px}
+.main{min-width:0;display:flex;flex-direction:column;height:100%}.topbar{height:78px;background:#fff;border-bottom:4px solid var(--rojo);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:14px}.page-title{font-size:22px;font-weight:900;color:var(--azul)}.page-sub{font-size:12px;color:var(--muted);margin-top:4px}.teacher-chip{background:#f8fafc;border:1px solid var(--line);padding:10px 12px;border-radius:12px;font-size:12px;color:var(--azul);font-weight:800}
+.dashboard{padding:14px 18px 10px;display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;background:var(--bg)}.metric{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow)}.metric span{display:block;font-size:11px;color:var(--muted);font-weight:700}.metric b{display:block;font-size:20px;color:var(--azul);margin-top:4px}.metric.red b{color:var(--rojo)}
+.status{padding:9px 18px;background:#fff;color:var(--muted);font-size:12px;border-bottom:1px solid var(--line)}.framewrap{flex:1;min-height:0;padding:0 12px 12px;background:var(--bg)}iframe{width:100%;height:100%;border:1px solid var(--line);border-radius:15px;background:#fff;box-shadow:var(--shadow)}
+.mobilebar{display:none}
+@media(max-width:850px){.app{display:block;overflow:auto}.sidebar{display:none}.main{height:100vh}.dashboard{grid-template-columns:1fr 1fr}.topbar{padding:0 12px}.teacher-chip{display:none}.framewrap{padding:0}.mobilebar{display:flex;overflow:auto;background:var(--azul);padding:8px;gap:6px}.mobilebar button{white-space:nowrap;border:0;border-radius:9px;padding:9px 11px;font-weight:800}.mobilebar button.active{background:#fff;color:var(--azul)}.mobilebar button:not(.active){background:#ffffff18;color:#fff}}
 </style>
 </head>
 <body>
-<div class="shell">
-  <div class="topbar">
-    <div><div class="title">🎓 Panel Docente</div><div class="subtitle">Universidad de Pamplona · Vista organizada por módulos</div></div>
-    <div style="font-size:13px">Interfaz simplificada</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><img src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo Universidad de Pamplona"><div><div class="brand-title">UNIVERSIDAD DE PAMPLONA</div><div class="brand-sub">Panel Docente · Sistema de Asistencia y Evaluación</div></div></div>
+  <div class="menu">
+    <button class="navbtn active" data-tab="inicio"><span class="navicon">🏠</span>Inicio</button>
+    <button class="navbtn" data-tab="grupos"><span class="navicon">👥</span>Grupos</button>
+    <button class="navbtn" data-tab="asistencias"><span class="navicon">🦁</span>Asistencias</button>
+    <button class="navbtn" data-tab="examenes"><span class="navicon">📝</span>Exámenes</button>
+    <button class="navbtn" data-tab="reportes"><span class="navicon">📊</span>Reportes</button>
+    <button class="navbtn" data-tab="config"><span class="navicon">⚙️</span>Configuración</button>
+    <button class="navbtn" data-tab="todo"><span class="navicon">🧩</span>Ver todo</button>
   </div>
-  <div class="tabs">
-    <button class="tab active" data-tab="grupos">👥 GRUPOS</button>
-    <button class="tab" data-tab="asistencias">✅ ASISTENCIAS</button>
-    <button class="tab" data-tab="examenes">📝 EXÁMENES</button>
-    <button class="tab" data-tab="reportes">📊 REPORTES / CONFIG.</button>
-    <button class="tab" data-tab="todo">🧩 VER TODO</button>
+  <div class="sidecard"><div class="lion"><img src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="León Universidad de Pamplona"><div><b>ASISTENCIA</b><br>Identidad institucional</div></div></div>
+</aside>
+<section class="main">
+  <div class="topbar"><div><div class="page-title" id="pageTitle">Panel Docente</div><div class="page-sub" id="pageSub">Universidad de Pamplona · Gestión académica</div></div><div class="teacher-chip">Mg. JULIO CESAR CONTRERAS VARGAS · Docente</div></div>
+  <div class="mobilebar">
+    <button class="active" data-tab="inicio">🏠 Inicio</button><button data-tab="grupos">👥 Grupos</button><button data-tab="asistencias">🦁 Asistencia</button><button data-tab="examenes">📝 Exámenes</button><button data-tab="reportes">📊 Reportes</button>
   </div>
-  <div class="status" id="status">Cargando panel docente…</div>
+  <div class="dashboard" id="dashboard">
+    <div class="metric"><span>MÓDULO</span><b id="metricModule">Inicio</b></div>
+    <div class="metric"><span>ASIGNATURAS</span><b>Programación I / II</b></div>
+    <div class="metric"><span>CONTROL</span><b>Asistencia 15%</b></div>
+    <div class="metric red"><span>EVALUACIÓN SEGURA</span><b>2 salidas</b></div>
+  </div>
+  <div class="status" id="status">Cargando sistema docente…</div>
   <div class="framewrap"><iframe id="panel" src="docente.html" title="Panel docente"></iframe></div>
+</section>
 </div>
 <script>
-const frame=document.getElementById('panel');
-const status=document.getElementById('status');
-let currentTab='grupos';
-
-function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
-
-function classify(card){
-  const id=norm(card.id);
-  const t=norm(card.innerText||card.textContent||'');
-  if(id.includes('evaluacion')||t.includes('evaluaciones')||t.includes('examen')||t.includes('calificaciones')||t.includes('intentos de evaluacion')) return 'examenes';
-  if(id.includes('reporte')||t.includes('reportes')||t.includes('nuevo semestre')||t.includes('configuracion')||t.includes('ubicacion del aula')||t.includes('profesor')||t.includes('docente')) return 'reportes';
-  if(t.includes('asistencia')||t.includes('codigo de clase')||t.includes('codigo qr')||t.includes('qr dinamico')||t.includes('clases activas')||t.includes('historial de clases')||t.includes('sesiones')) return 'asistencias';
-  if(t.includes('grupo')||t.includes('horario')||t.includes('estudiantes registrados')||t.includes('matricula')||t.includes('estudiantes')) return 'grupos';
-  return 'grupos';
-}
-
-function applyTab(tab){
-  currentTab=tab;
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-  let doc;
-  try{doc=frame.contentDocument||frame.contentWindow.document;}catch(e){status.textContent='No se pudo acceder al panel interno.';return;}
-  if(!doc||!doc.body)return;
-
-  const login=doc.querySelector('.login');
-  if(login && getComputedStyle(login).display!=='none'){
-    status.textContent='Inicia sesión en el panel docente. Después aparecerán las pestañas organizadas.';
-    return;
-  }
-
-  const cards=[...doc.querySelectorAll('main > section.card, main > div.card, main .card')]
-    .filter((el,i,a)=>a.indexOf(el)===i && !el.closest('.card .card'));
-
-  if(tab==='todo'){
-    cards.forEach(c=>c.style.display='');
-    status.textContent='Mostrando todas las secciones del panel.';
-    return;
-  }
-
-  let visible=0;
-  cards.forEach(card=>{
-    const cat=classify(card);
-    const show=cat===tab;
-    card.style.display=show?'':'none';
-    if(show)visible++;
-  });
-
-  // Mantener estadísticas superiores visibles si existen.
-  doc.querySelectorAll('main > .stats, main .stats').forEach(s=>s.style.display=(tab==='asistencias'||tab==='grupos')?'':'none');
-
-  const names={grupos:'Grupos y estudiantes',asistencias:'Asistencias y clases',examenes:'Exámenes y calificaciones',reportes:'Reportes y configuración'};
-  status.textContent=`${names[tab]} · ${visible} bloque(s) visibles`;
-  try{frame.contentWindow.scrollTo({top:0,behavior:'smooth'});}catch(e){}
-}
-
-document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>applyTab(btn.dataset.tab)));
-
-frame.addEventListener('load',()=>{
-  status.textContent='Panel cargado. Organizando información…';
-  setTimeout(()=>applyTab(currentTab),900);
-  setTimeout(()=>applyTab(currentTab),2200);
-  try{
-    const doc=frame.contentDocument||frame.contentWindow.document;
-    new MutationObserver(()=>{
-      clearTimeout(window.__tabRefresh);
-      window.__tabRefresh=setTimeout(()=>applyTab(currentTab),250);
-    }).observe(doc.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
-  }catch(e){}
-});
+const frame=document.getElementById('panel'),status=document.getElementById('status'),pageTitle=document.getElementById('pageTitle'),pageSub=document.getElementById('pageSub'),metric=document.getElementById('metricModule');let currentTab='inicio';
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
+function classify(card){const id=norm(card.id),t=norm(card.innerText||card.textContent||'');if(t.includes('examen')||t.includes('evaluacion')||t.includes('calificacion')||t.includes('intentos'))return'examenes';if(t.includes('reporte')||t.includes('porcentaje')||t.includes('ausencia')||t.includes('riesgo'))return'reportes';if(t.includes('ubicacion')||t.includes('nuevo semestre')||t.includes('profesor')||t.includes('configuracion')||t.includes('borrar'))return'config';if(t.includes('asistencia')||t.includes('codigo de clase')||t.includes('qr')||t.includes('clases activas')||t.includes('historial de clases')||t.includes('sesion'))return'asistencias';if(t.includes('grupo')||t.includes('horario')||t.includes('estudiantes registrados')||t.includes('matricula')||t.includes('estudiante'))return'grupos';return'grupos'}
+const labels={inicio:['Panel Docente','Resumen general de gestión académica'],grupos:['Grupos','Estudiantes, matrículas y horarios'],asistencias:['Asistencias','🦁 Control de clases, QR y registro de asistencia'],examenes:['Exámenes','Evaluaciones, intentos, revisión y calificaciones'],reportes:['Reportes','Ausencias, porcentajes y seguimiento académico'],config:['Configuración','Ubicación, semestre y administración'],todo:['Panel completo','Todas las herramientas disponibles']};
+function setButtons(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab))}
+function applyTab(tab){currentTab=tab;setButtons(tab);pageTitle.textContent=labels[tab][0];pageSub.textContent=labels[tab][1];metric.textContent=labels[tab][0];let doc;try{doc=frame.contentDocument||frame.contentWindow.document}catch(e){return}if(!doc||!doc.body)return;const cards=[...doc.querySelectorAll('main .card')].filter((el,i,a)=>a.indexOf(el)===i&&!el.closest('.card .card'));if(tab==='todo'){cards.forEach(c=>c.style.display='');status.textContent='Mostrando todo el panel docente.';return}if(tab==='inicio'){cards.forEach(c=>c.style.display='none');doc.querySelectorAll('main .stats').forEach(s=>s.style.display='');status.textContent='Resumen general del panel docente.';return}let visible=0;cards.forEach(c=>{const show=classify(c)===tab;c.style.display=show?'':'none';if(show)visible++});doc.querySelectorAll('main .stats').forEach(s=>s.style.display='none');status.textContent=labels[tab][0]+' · '+visible+' bloque(s) visibles';try{frame.contentWindow.scrollTo(0,0)}catch(e){}}
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>applyTab(b.dataset.tab)));
+frame.addEventListener('load',()=>{setTimeout(()=>applyTab(currentTab),900);setTimeout(()=>applyTab(currentTab),2200)});
 </script>
 </body>
 </html>
