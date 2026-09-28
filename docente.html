@@ -1064,6 +1064,14 @@ if(normalizeClassText(data.group)!==normalizeClassText(g)){
   throw new Error(`La clase no se creó con el grupo correcto. Esperado: ${g}; recibido: ${data.group||"sin grupo"}.`);
 }
 active=data;
+// GPS AUTOMÁTICO AL INICIAR CLASE: toma la ubicación del dispositivo del docente
+// y actualiza el punto autorizado del aula sin configuración manual adicional.
+try{
+  await configurarGpsAutomaticoAlIniciarClase();
+}catch(gpsError){
+  console.warn("No fue posible configurar automáticamente el GPS:",gpsError);
+  alert("La clase fue iniciada, pero no se pudo configurar automáticamente el GPS. "+(gpsError?.message||gpsError));
+}
 pendingScheduleClass=null;
 closeNew();
 await renderAll()
@@ -1202,6 +1210,40 @@ async function cambiarClaveBorrado(){
  }catch(e){
    alert("No se pudo cambiar la clave: "+(e.message||e));
  }
+}
+
+function configurarGpsAutomaticoAlIniciarClase(){
+ return new Promise((resolve,reject)=>{
+   const status=document.getElementById("attendanceLocationStatus");
+   const radius=Math.max(20,Math.min(1000,Number(document.getElementById("attendanceRadius")?.value||100)));
+   if(!navigator.geolocation){
+     reject(new Error("Este navegador no permite obtener la ubicación."));
+     return;
+   }
+   if(status)status.textContent="Configurando GPS automáticamente para la clase...";
+   navigator.geolocation.getCurrentPosition(async pos=>{
+     try{
+       const {data,error}=await client.rpc("admin_set_attendance_location",{
+         p_lat:pos.coords.latitude,
+         p_lng:pos.coords.longitude,
+         p_radius_m:radius
+       });
+       if(error)throw error;
+       if(status)status.textContent=`GPS configurado automáticamente · radio ${radius} m · precisión aproximada ${Math.round(pos.coords.accuracy||0)} m`;
+       resolve({data,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,radius});
+     }catch(e){
+       if(status)status.textContent="Error configurando GPS automáticamente: "+(e.message||e);
+       reject(e);
+     }
+   },err=>{
+     let m="No fue posible obtener la ubicación.";
+     if(err.code===1)m="Permiso de ubicación rechazado. Debes permitir la ubicación en el navegador.";
+     if(err.code===2)m="Ubicación no disponible. Activa la ubicación/GPS del dispositivo.";
+     if(err.code===3)m="La ubicación tardó demasiado en responder.";
+     if(status)status.textContent=m;
+     reject(new Error(m));
+   },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+ });
 }
 
 async function guardarUbicacionAula(){
