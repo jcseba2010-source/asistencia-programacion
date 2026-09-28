@@ -197,7 +197,7 @@ td{
 @media(max-width:700px){.horario-grid{min-width:760px}.horario-card{padding:14px!important}}</style><!-- VERSION PANEL ACUMULADO CORREGIDO 2026-09-09 -->
 <!-- HISTORIAL CON CLASE NUMERADA -->
 <!-- VERSION SOLO CLASES REALES -->
-<!-- REGLA ESTADO: 0-1 BIEN, 2 EN RIESGO, 3+ PIERDE -->
+<!-- REGLA ESTADO: 5 HORAS DE AUSENCIA = PIERDE -->
 <!-- NOTAS: (aciertos / total) * 5; aprueba >= 3.0 -->
 <style id="auto-clean-review-style">#codeReviewModal{position:fixed;inset:0;background:#0009;z-index:100000;padding:20px;overflow:auto}#codeReviewModal.hidden{display:none!important}#codeReviewModal .review-wrap{max-width:1000px;margin:2vh auto;background:#fff;border-radius:18px;padding:22px}.review-answer{background:#111827;color:#f8fafc;border-radius:12px;padding:14px;white-space:pre-wrap;font-family:Consolas,monospace;min-height:100px;overflow:auto}.review-grid{display:grid;grid-template-columns:1fr 180px;gap:12px;align-items:start;margin:16px 0;padding-bottom:16px;border-bottom:1px solid #e5e7eb}.review-score input{width:100%}.final-grade-box{background:#eef8f1;border:2px solid #86c99b;border-radius:12px;padding:14px;font-weight:800;margin:14px 0}@media(max-width:700px){.review-grid{grid-template-columns:1fr}}</style>
 <style id="entrada-leon-final">
@@ -806,7 +806,7 @@ body:not(.login-mode) #app .top h1{
 <div style="overflow:auto"><table><thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura</th><th>Grupo</th><th>Estado</th><th>Salidas</th><th>Inicio</th><th>Acción</th></tr></thead><tbody id="examAttemptsBody"></tbody></table></div></section>
 <section class="card" id="reportes">
 <h2>Reportes</h2>
-<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas. Las fallas se calculan por encuentros reales; con 15% o más de ausencias la asignatura se marca como perdida por fallas. Protección V14: las sesiones vacías de prueba no generan ausencias.</p>
+<p class="muted">Consulta el desempeño de asistencia por asignatura, grupo y rango de fechas. Las fallas se calculan por horas reales del horario; al acumular 5 horas de ausencia el estudiante pierde por fallas. Protección V14: las sesiones vacías de prueba no generan ausencias.</p>
 <div class="filters">
 <select id="reportSubject" onchange="renderReports()"><option value="">Todas las asignaturas</option></select>
 <select id="reportGroup" onchange="renderReports()"><option value="">Todos los grupos</option></select>
@@ -827,7 +827,7 @@ body:not(.login-mode) #app .top h1{
 <div id="reportSummary" style="margin-top:18px"></div>
 <div style="overflow:auto;margin-top:18px">
 <table>
-<thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura / Grupo</th><th>Asistencias</th><th>Clases realizadas</th><th>Ausencias</th><th>% Asistencia</th><th>% Fallas</th><th>Estado</th></tr></thead>
+<thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Asignatura / Grupo</th><th>Horas asistidas</th><th>Horas realizadas</th><th>Horas ausencia</th><th>% Asistencia</th><th>% Fallas</th><th>Estado (5 h)</th></tr></thead>
 <tbody id="reportBody"></tbody>
 </table>
 </div>
@@ -1051,6 +1051,9 @@ if(activeError)return showErr("modalErr","No se pudo verificar si existe una cla
 if(existingActive&&existingActive.length){return showErr("modalErr",`Ya existe una clase activa: ${existingActive[0].subject} · Grupo ${existingActive[0].group}. Primero debes finalizarla antes de iniciar otra.`)}
 const d=new Date(),mins=Number(duration.value),code=codeFor(s,g),expires=new Date(d.getTime()+mins*60000).toISOString();
 try{
+// GPS DEL AULA: se obtiene y guarda ANTES de crear la sesión.
+// Así nunca se inicia una clase usando una coordenada antigua.
+await configurarGpsAutomaticoAlIniciarClase();
 const payload={subject:s,group:g,group_name:g,code,starts_at:d.toISOString(),expires_at:expires,active:true};
 const {data,error}=await client.from("sessions").insert(payload).select().single();
 if(error){
@@ -1064,14 +1067,6 @@ if(normalizeClassText(data.group)!==normalizeClassText(g)){
   throw new Error(`La clase no se creó con el grupo correcto. Esperado: ${g}; recibido: ${data.group||"sin grupo"}.`);
 }
 active=data;
-// GPS AUTOMÁTICO AL INICIAR CLASE: toma la ubicación del dispositivo del docente
-// y actualiza el punto autorizado del aula sin configuración manual adicional.
-try{
-  await configurarGpsAutomaticoAlIniciarClase();
-}catch(gpsError){
-  console.warn("No fue posible configurar automáticamente el GPS:",gpsError);
-  alert("La clase fue iniciada, pero no se pudo configurar automáticamente el GPS. "+(gpsError?.message||gpsError));
-}
 pendingScheduleClass=null;
 closeNew();
 await renderAll()
@@ -1212,57 +1207,57 @@ async function cambiarClaveBorrado(){
  }
 }
 
-function obtenerGpsPreciso({objetivo=35,limite=80,timeout=25000}={}){
+function obtenerGpsPrecisoDocente(){
  return new Promise((resolve,reject)=>{
-   if(!navigator.geolocation){reject(new Error("Este navegador no permite obtener la ubicación."));return;}
-   let mejor=null,watchId=null,terminado=false;
-   const finalizar=(error)=>{
-     if(terminado)return; terminado=true;
+   if(!navigator.geolocation){
+     reject(new Error("Este navegador no permite obtener la ubicación."));
+     return;
+   }
+   let best=null, watchId=null, finished=false;
+   const maxWait=15000;
+   const targetAccuracy=35;
+   const finish=(err)=>{
+     if(finished)return;
+     finished=true;
      if(watchId!==null)navigator.geolocation.clearWatch(watchId);
      clearTimeout(timer);
-     if(error){reject(error);return;}
-     if(!mejor){reject(new Error("No fue posible obtener una lectura GPS válida."));return;}
-     if(Number(mejor.coords.accuracy||9999)>limite){
-       reject(new Error(`La precisión GPS es insuficiente (${Math.round(mejor.coords.accuracy)} m). Acércate a una ventana o espera unos segundos y vuelve a iniciar.`));
-       return;
-     }
-     resolve(mejor);
+     if(best)resolve(best); else reject(err||new Error("No fue posible obtener una ubicación válida."));
    };
-   const timer=setTimeout(()=>finalizar(),timeout);
+   const timer=setTimeout(()=>finish(new Error("La ubicación tardó demasiado en estabilizarse.")),maxWait);
    watchId=navigator.geolocation.watchPosition(pos=>{
-     if(!mejor || Number(pos.coords.accuracy||9999)<Number(mejor.coords.accuracy||9999)) mejor=pos;
+     const reading={
+       lat:pos.coords.latitude,
+       lng:pos.coords.longitude,
+       accuracy:Number(pos.coords.accuracy||9999)
+     };
+     if(!best || reading.accuracy<best.accuracy)best=reading;
      const status=document.getElementById("attendanceLocationStatus");
-     if(status)status.textContent=`Afinando GPS... mejor precisión ${Math.round(mejor.coords.accuracy||0)} m`;
-     if(Number(pos.coords.accuracy||9999)<=objetivo)finalizar();
+     if(status)status.textContent=`Buscando GPS preciso… mejor precisión ${Math.round(best.accuracy)} m`;
+     if(reading.accuracy<=targetAccuracy)finish();
    },err=>{
-     let m="No fue posible obtener la ubicación.";
-     if(err.code===1)m="Permiso de ubicación rechazado. Debes permitir la ubicación en el navegador.";
-     if(err.code===2)m="Ubicación no disponible. Activa la ubicación/GPS del dispositivo.";
-     if(err.code===3)m="La ubicación tardó demasiado en responder.";
-     finalizar(new Error(m));
-   },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
+     if(err.code===1)finish(new Error("Permiso de ubicación rechazado. Activa la ubicación precisa del navegador."));
+   },{enableHighAccuracy:true,maximumAge:0,timeout:maxWait});
  });
 }
 
 async function configurarGpsAutomaticoAlIniciarClase(){
  const status=document.getElementById("attendanceLocationStatus");
  const radius=Math.max(20,Math.min(1000,Number(document.getElementById("attendanceRadius")?.value||100)));
- if(status)status.textContent="Configurando GPS automáticamente para la clase...";
- try{
-   // No se guarda la primera lectura: se toman varias y se conserva la de mejor precisión.
-   const pos=await obtenerGpsPreciso({objetivo:35,limite:80,timeout:25000});
-   const {data,error}=await client.rpc("admin_set_attendance_location",{
-     p_lat:pos.coords.latitude,
-     p_lng:pos.coords.longitude,
-     p_radius_m:radius
-   });
-   if(error)throw error;
-   if(status)status.textContent=`GPS configurado automáticamente · radio ${radius} m · precisión ${Math.round(pos.coords.accuracy||0)} m`;
-   return {data,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,radius};
- }catch(e){
-   if(status)status.textContent="GPS no guardado: "+(e.message||e);
-   throw e;
+ if(status)status.textContent="Configurando ubicación del aula antes de iniciar la clase…";
+ const gps=await obtenerGpsPrecisoDocente();
+ // Una lectura extremadamente imprecisa puede colocar el aula a kilómetros de distancia.
+ // En ese caso se bloquea el inicio en vez de guardar una coordenada incorrecta.
+ if(!Number.isFinite(gps.accuracy) || gps.accuracy>150){
+   throw new Error(`GPS demasiado impreciso (${Math.round(gps.accuracy)} m). Activa Ubicación precisa/GPS en el celular y vuelve a iniciar la clase.`);
  }
+ const {data,error}=await client.rpc("admin_set_attendance_location",{
+   p_lat:gps.lat,
+   p_lng:gps.lng,
+   p_radius_m:radius
+ });
+ if(error)throw error;
+ if(status)status.textContent=`GPS del aula actualizado · radio ${radius} m · precisión ${Math.round(gps.accuracy)} m`;
+ return {data,...gps,radius};
 }
 
 async function guardarUbicacionAula(){
@@ -1728,8 +1723,8 @@ function renderTable(){
       <table>
         <thead><tr>
           <th>#</th><th>Estudiante</th><th>Cédula</th>
-          <th>Clases realizadas</th><th>Asistencias</th><th>Ausencias</th>
-          <th>% actual</th><th>Estado (3 faltas)</th><th>Acciones</th>
+          <th>Horas realizadas</th><th>Horas asistidas</th><th>Horas ausencia</th>
+          <th>% fallas</th><th>Estado (5 h)</th><th>Acciones</th>
         </tr></thead><tbody>`;
 
     if(!students.length){
@@ -1741,29 +1736,24 @@ function renderTable(){
         String(r.cedula||"").trim()===st.cedula &&
         sessionIds.has(String(r.session_ref||""))
       );
-      const uniqueSessions=new Set(
-        regs.map(r=>String(r.session_ref||"")).filter(Boolean)
-      );
-      const asistencias=uniqueSessions.size;
-      const ausencias=Math.max(0,clasesRealizadas-asistencias);
-      const pct=clasesRealizadas ? (ausencias/clasesRealizadas*100) : 0;
-      let estado;
-      if(ausencias>=3){
-        estado=`<span class="pill" style="background:#fee2e2;color:#991b1b">PIERDE</span>`;
-      }else if(ausencias===2){
-        estado=`<span class="pill" style="background:#fef3c7;color:#92400e">EN RIESGO</span>`;
-      }else{
-        estado=`<span class="pill" style="background:#dcfce7;color:#166534">BIEN</span>`;
-      }
+      const encounters=buildEncounters(groupSessions);
+      const horasRealizadas=horasTotalesEncuentros(encounters);
+      const horasAsistidas=horasAsistidasEncuentros(encounters,groupRecords,st.cedula);
+      const horasAusencia=Math.max(0,horasRealizadas-horasAsistidas);
+      const pctFallas=horasRealizadas ? (horasAusencia/horasRealizadas*100) : 0;
+      const pierde=horasAusencia>=5;
+      const estado=pierde
+        ? `<span class="pill" style="background:#fee2e2;color:#991b1b">PIERDE</span>`
+        : `<span class="pill" style="background:#dcfce7;color:#166534">BIEN</span>`;
 
       html+=`<tr>
         <td>${idx+1}</td>
         <td><b>${esc(st.name||"")}</b></td>
         <td>${esc(st.cedula)}</td>
-        <td>${clasesRealizadas}</td>
-        <td>${asistencias}</td>
-        <td>${ausencias}</td>
-        <td>${pct.toFixed(1)}%</td>
+        <td>${horasRealizadas} h</td>
+        <td>${horasAsistidas} h</td>
+        <td>${horasAusencia} h</td>
+        <td>${pctFallas.toFixed(1)}%</td>
         <td>${estado}</td>
         <td style="min-width:360px">
           <button type="button" onclick='verHistorialEstudiante(${JSON.stringify(st.cedula)},${JSON.stringify(g)},${JSON.stringify(subject)})'>VER HISTORIAL</button>
@@ -1778,6 +1768,43 @@ function renderTable(){
 
   attendanceGroupsEl.innerHTML=html||`<div class="card muted">Seleccione un grupo.</div>`;
 }
+
+// REGLA DE FALLAS POR HORAS (2026-09-27)
+// 5 horas acumuladas de ausencia = PIERDE POR FALLAS.
+// Las horas de cada encuentro se toman del horario oficial 2026-2.
+function horasEncuentro(encounter){
+  if(!encounter)return 0;
+  const sample=(encounter.sessions&&encounter.sessions[0])||encounter;
+  const subject=sample.subject||encounter.subject||"";
+  const group=sample.group_name||sample.group||encounter.group||"";
+  const d=new Date(sample.starts_at||sample.created_at||0);
+  const day=Number.isNaN(d.getTime())?null:d.getDay();
+  if(typeof HORARIO_2026_2!=="undefined" && day!==null){
+    const h=HORARIO_2026_2.find(x=>x.day===day&&sameText(x.subject,subject)&&sameText(x.group,group));
+    if(h)return Math.max(0,Number(h.end)-Number(h.start));
+  }
+  // Clase extraordinaria/no coincidente con horario: usa la duración real registrada,
+  // limitada a un bloque académico razonable; si no existe, usa 2 h.
+  if(sample.starts_at&&sample.expires_at){
+    const mins=(new Date(sample.expires_at)-new Date(sample.starts_at))/60000;
+    if(Number.isFinite(mins)&&mins>0)return Math.max(1,Math.min(3,Math.round(mins/60)));
+  }
+  return 2;
+}
+function horasTotalesEncuentros(encounters){
+  return (encounters||[]).reduce((n,c)=>n+horasEncuentro(c),0);
+}
+function horasAsistidasEncuentros(encounters,records,cedula){
+  return (encounters||[]).reduce((n,c)=>{
+    const ids=new Set((c.sessions||[]).map(s=>String(s.id)));
+    const asistio=(records||[]).some(a=>String(a.cedula)===String(cedula)&&ids.has(String(a.session_ref)));
+    return n+(asistio?horasEncuentro(c):0);
+  },0);
+}
+function estadoFallasPorHoras(horasAusencia){
+  return Number(horasAusencia)>=5?"PIERDE":"BIEN";
+}
+
 function verFirmaPorId(id){
  const x=(db.records||[]).find(r=>Number(r.id)===Number(id));
  if(!x||!x.firma)return;
@@ -1916,12 +1943,12 @@ function renderReports(){
    const ens=(st._enrollments||[]).filter(e=>(!r.subject||sameText(e.subject,r.subject))&&(!r.group||sameText(e.group_name,r.group)));
    ens.forEach(en=>{
      const classRows=encountersForEnrollment(r,en);
-     const attended=attendedEncounterCount(r,st,en);
-     const total=classRows.length;
+     const total=horasTotalesEncuentros(classRows);
+     const attended=horasAsistidasEncuentros(classRows,r.records,st.cedula);
      const abs=Math.max(0,total-attended);
      const pct=total?Math.round(attended*100/total):0;
      const failPct=total?Math.round((abs*100/total)*10)/10:0;
-     const lost=total>0&&failPct>=15;
+     const lost=total>0&&abs>=5;
      rows.push({name:st.name,cedula:st.cedula,subject:en.subject,group:en.group_name,attended,total,abs,pct,failPct,lost});
    });
  });
@@ -1937,14 +1964,14 @@ function renderReports(){
  document.getElementById("reportAttendances").textContent=attendedTotal;
  document.getElementById("reportAverage").textContent=possible?Math.round((attendedTotal/possible)*100)+"%":"0%";
 
- body.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.subject)} · Grupo ${esc(x.group)}</td><td>${x.attended}</td><td>${x.total}</td><td>${x.abs}</td><td><b>${x.pct}%</b></td><td><b>${x.failPct}%</b></td><td><b>${x.total===0?'SIN CLASES':(x.lost?'PERDIÓ POR FALLAS':'NORMAL')}</b></td></tr>`).join(""):'<tr><td colspan="10" class="muted">No hay datos para los filtros seleccionados.</td></tr>';
+ body.innerHTML=rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${esc(x.cedula)}</td><td>${esc(x.subject)} · Grupo ${esc(x.group)}</td><td>${x.attended} h</td><td>${x.total} h</td><td>${x.abs} h</td><td><b>${x.pct}%</b></td><td><b>${x.failPct}%</b></td><td><b>${x.total===0?'SIN CLASES':(x.lost?'PERDIÓ POR FALLAS':'NORMAL')}</b></td></tr>`).join(""):'<tr><td colspan="10" class="muted">No hay datos para los filtros seleccionados.</td></tr>';
 
  const byGroup={};
  rows.forEach(x=>{const k=x.subject+" · Grupo "+x.group;(byGroup[k]??=[]).push(x)});
  document.getElementById("reportSummary").innerHTML=Object.entries(byGroup).map(([k,a])=>{
    const total=a.reduce((n,x)=>n+x.total,0), attended=a.reduce((n,x)=>n+x.attended,0), lost=a.filter(x=>x.lost).length;
    const pct=total?Math.round(attended*100/total):0;
-   return `<div class="session"><strong>${esc(k)}</strong><br><span class="muted">${a.length} estudiante(s) · ${attended} asistencias de ${total} posibles · ${pct}% asistencia · ${lost} con 15% o más de fallas</span></div>`;
+   return `<div class="session"><strong>${esc(k)}</strong><br><span class="muted">${a.length} estudiante(s) · ${attended} h asistidas de ${total} h realizadas · ${pct}% asistencia · ${lost} con 5 h o más de ausencia</span></div>`;
  }).join("")||'<div class="muted">Selecciona un período con información para generar el reporte.</div>';
 }
 function clearReportFilters(){
@@ -1956,11 +1983,12 @@ function reportRows(){
  r.students.forEach(st=>{
    (st._enrollments||[]).filter(e=>(!r.subject||sameText(e.subject,r.subject))&&(!r.group||sameText(e.group_name,r.group))).forEach(en=>{
 const encs=encountersForEnrollment(r,en);
-     const att=attendedEncounterCount(r,st,en);
-     const abs=Math.max(0,encs.length-att);
-     const pct=encs.length?Math.round(att*100/encs.length):0;
-     const failPct=encs.length?Math.round((abs*100/encs.length)*10)/10:0;
-     rows.push([st.name,st.cedula,en.subject,en.group_name,att,encs.length,abs,pct+"%",failPct+"%",encs.length?(failPct>=15?"PERDIÓ POR FALLAS":"NORMAL"):"SIN CLASES"]);
+     const totalH=horasTotalesEncuentros(encs);
+     const att=horasAsistidasEncuentros(encs,r.records,st.cedula);
+     const abs=Math.max(0,totalH-att);
+     const pct=totalH?Math.round(att*100/totalH):0;
+     const failPct=totalH?Math.round((abs*100/totalH)*10)/10:0;
+     rows.push([st.name,st.cedula,en.subject,en.group_name,att,totalH,abs,pct+"%",failPct+"%",totalH?(abs>=5?"PERDIÓ POR FALLAS":"NORMAL"):"SIN CLASES"]);
    });
  });
  return rows;
@@ -1975,7 +2003,7 @@ function exportReportCSV(){
   ["Desde",r.from||"Sin límite"],
   ["Hasta",r.to||"Sin límite"],
   [],
-  ["Estudiante","Cédula","Asignatura","Grupo","Asistencias","Clases realizadas","Ausencias","% Asistencia","% Fallas","Estado"],
+  ["Estudiante","Cédula","Asignatura","Grupo","Horas asistidas","Horas realizadas","Horas ausencia","% Asistencia","% Fallas","Estado (5 h)"],
   ...reportRows()
  ],"reporte_asistencia.csv");
 }
