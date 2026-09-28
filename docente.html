@@ -778,6 +778,41 @@ body:not(.login-mode) #app .top h1{
 }
 </style>
 
+
+<style id="perfil-foto-al-lado-nombre">
+#perfil-docente-administracion{
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:14px !important;
+}
+#adminTeacherPhotoPreview{
+  display:none;
+  width:68px !important;
+  height:68px !important;
+  min-width:68px !important;
+  border-radius:50% !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  border:3px solid #fff !important;
+  box-shadow:0 1px 7px rgba(0,0,0,.22) !important;
+}
+#adminTeacherPhotoPreview[src]:not([src=""]){
+  display:block !important;
+}
+#perfil-docente-administracion .perfil-docente-admin-datos{
+  display:flex !important;
+  flex-direction:column !important;
+  justify-content:center !important;
+}
+@media(max-width:600px){
+  #adminTeacherPhotoPreview{
+    width:56px !important;height:56px !important;min-width:56px !important;
+  }
+}
+</style>
+
 </head>
 <body class="login-mode">
 <header><div class="brand-wrap"><img class="up-logo" src="https://aplicaciones.unipamplona.edu.co/unipamplona/portalIG/home_1/recursos/upa/10092012/escudounipamplona.png" alt="Escudo oficial de la Universidad de Pamplona"><div><div class="brand">UNIVERSIDAD DE PAMPLONA</div><div class="sub">Panel docente · Control de asistencia</div></div></div><div id="userBox"></div></header>
@@ -1008,11 +1043,29 @@ document.addEventListener("change",function(ev){
      pendingTeacherPhoto=canvas.toDataURL("image/jpeg",0.82);
      const prev=document.getElementById("adminTeacherPhotoPreview");
      if(prev){ prev.src=pendingTeacherPhoto; prev.style.display="block"; }
+     teacherPhoto=pendingTeacherPhoto;
+     pintarPerfilDocente();
    };
    img.src=reader.result;
  };
  reader.readAsDataURL(file);
 });
+
+
+function pintarPerfilDocente(){
+  const profileName=document.getElementById("adminTeacherProfileName");
+  const photoPreview=document.getElementById("adminTeacherPhotoPreview");
+  if(profileName) profileName.textContent=teacherName||"DOCENTE POR DEFINIR";
+  if(photoPreview){
+    if(teacherPhoto && String(teacherPhoto).trim()){
+      photoPreview.src=teacherPhoto;
+      photoPreview.style.display="block";
+    }else{
+      photoPreview.removeAttribute("src");
+      photoPreview.style.display="none";
+    }
+  }
+}
 
 </script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -1021,6 +1074,7 @@ let client=null,db={sessions:[],records:[],students:[],groups:[],examCodeReviews
 let currentCodeReview=null;
 let teacherPhoto="";
 let pendingTeacherPhoto="";
+   pintarPerfilDocente();
 if(cfg.supabaseUrl&&cfg.supabaseAnonKey&&window.supabase){ client=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey); }
 function showErr(id,t){
  const e=document.getElementById(id);
@@ -1416,6 +1470,7 @@ async function fetchData(){
  if(en.error)throw en.error;if(gg.error)throw gg.error;if(ex.error)throw ex.error;if(ep.error)throw ep.error;if(er.error)throw er.error;if(cfgs.error)throw cfgs.error;
  teacherName=(cfgs.data?.teacher_name||teacherName||"DOCENTE POR DEFINIR").trim();
  teacherPhoto=cfgs.data?.teacher_photo||teacherPhoto||"";
+ pintarPerfilDocente();
  const locStatus=document.getElementById("attendanceLocationStatus");
  const radiusInput=document.getElementById("attendanceRadius");
  if(radiusInput && cfgs.data?.attendance_radius_m) radiusInput.value=cfgs.data.attendance_radius_m;
