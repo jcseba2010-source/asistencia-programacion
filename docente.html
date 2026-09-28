@@ -1212,38 +1212,57 @@ async function cambiarClaveBorrado(){
  }
 }
 
-function configurarGpsAutomaticoAlIniciarClase(){
+function obtenerGpsPreciso({objetivo=35,limite=80,timeout=25000}={}){
  return new Promise((resolve,reject)=>{
-   const status=document.getElementById("attendanceLocationStatus");
-   const radius=Math.max(20,Math.min(1000,Number(document.getElementById("attendanceRadius")?.value||100)));
-   if(!navigator.geolocation){
-     reject(new Error("Este navegador no permite obtener la ubicación."));
-     return;
-   }
-   if(status)status.textContent="Configurando GPS automáticamente para la clase...";
-   navigator.geolocation.getCurrentPosition(async pos=>{
-     try{
-       const {data,error}=await client.rpc("admin_set_attendance_location",{
-         p_lat:pos.coords.latitude,
-         p_lng:pos.coords.longitude,
-         p_radius_m:radius
-       });
-       if(error)throw error;
-       if(status)status.textContent=`GPS configurado automáticamente · radio ${radius} m · precisión aproximada ${Math.round(pos.coords.accuracy||0)} m`;
-       resolve({data,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,radius});
-     }catch(e){
-       if(status)status.textContent="Error configurando GPS automáticamente: "+(e.message||e);
-       reject(e);
+   if(!navigator.geolocation){reject(new Error("Este navegador no permite obtener la ubicación."));return;}
+   let mejor=null,watchId=null,terminado=false;
+   const finalizar=(error)=>{
+     if(terminado)return; terminado=true;
+     if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+     clearTimeout(timer);
+     if(error){reject(error);return;}
+     if(!mejor){reject(new Error("No fue posible obtener una lectura GPS válida."));return;}
+     if(Number(mejor.coords.accuracy||9999)>limite){
+       reject(new Error(`La precisión GPS es insuficiente (${Math.round(mejor.coords.accuracy)} m). Acércate a una ventana o espera unos segundos y vuelve a iniciar.`));
+       return;
      }
+     resolve(mejor);
+   };
+   const timer=setTimeout(()=>finalizar(),timeout);
+   watchId=navigator.geolocation.watchPosition(pos=>{
+     if(!mejor || Number(pos.coords.accuracy||9999)<Number(mejor.coords.accuracy||9999)) mejor=pos;
+     const status=document.getElementById("attendanceLocationStatus");
+     if(status)status.textContent=`Afinando GPS... mejor precisión ${Math.round(mejor.coords.accuracy||0)} m`;
+     if(Number(pos.coords.accuracy||9999)<=objetivo)finalizar();
    },err=>{
      let m="No fue posible obtener la ubicación.";
      if(err.code===1)m="Permiso de ubicación rechazado. Debes permitir la ubicación en el navegador.";
      if(err.code===2)m="Ubicación no disponible. Activa la ubicación/GPS del dispositivo.";
      if(err.code===3)m="La ubicación tardó demasiado en responder.";
-     if(status)status.textContent=m;
-     reject(new Error(m));
-   },{enableHighAccuracy:true,timeout:15000,maximumAge:0});
+     finalizar(new Error(m));
+   },{enableHighAccuracy:true,maximumAge:0,timeout:12000});
  });
+}
+
+async function configurarGpsAutomaticoAlIniciarClase(){
+ const status=document.getElementById("attendanceLocationStatus");
+ const radius=Math.max(20,Math.min(1000,Number(document.getElementById("attendanceRadius")?.value||100)));
+ if(status)status.textContent="Configurando GPS automáticamente para la clase...";
+ try{
+   // No se guarda la primera lectura: se toman varias y se conserva la de mejor precisión.
+   const pos=await obtenerGpsPreciso({objetivo:35,limite:80,timeout:25000});
+   const {data,error}=await client.rpc("admin_set_attendance_location",{
+     p_lat:pos.coords.latitude,
+     p_lng:pos.coords.longitude,
+     p_radius_m:radius
+   });
+   if(error)throw error;
+   if(status)status.textContent=`GPS configurado automáticamente · radio ${radius} m · precisión ${Math.round(pos.coords.accuracy||0)} m`;
+   return {data,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy,radius};
+ }catch(e){
+   if(status)status.textContent="GPS no guardado: "+(e.message||e);
+   throw e;
+ }
 }
 
 async function guardarUbicacionAula(){
