@@ -879,10 +879,10 @@ body:not(.login-mode) #app .top h1{
 
 <div class="card" id="administracionEditable" style="margin-top:24px;border:1px solid #d7e2ef!important;">
 <div id="perfil-docente-administracion" class="perfil-docente-admin">
-  <img id="adminTeacherPhotoPreview" alt="Foto del docente" class="perfil-docente-admin-foto">
+  <img id="adminTeacherPhotoPreview" alt="" class="perfil-docente-admin-foto" style="display:none">
   <div class="perfil-docente-admin-datos">
     <div class="perfil-docente-admin-etiqueta">DOCENTE</div>
-    <div id="adminTeacherProfileName" class="perfil-docente-admin-nombre">DOCENTE POR DEFINIR</div>
+    <div id="adminTeacherProfileName" class="perfil-docente-admin-nombre"></div>
   </div>
 </div>
 
@@ -1406,11 +1406,16 @@ async function fetchData(){
  }catch(e){ console.warn("Intentos de evaluación:",e); }
  let examCodeReviews=[];
  try{ const cr=await client.rpc("admin_list_exam_code_reviews"); if(cr.error) console.warn("Revisión código:",cr.error.message); else examCodeReviews=cr.data||[]; }catch(e){ console.warn("Revisión código:",e); }
- const cfgs=await client.from("app_settings").select("teacher_name,teacher_photo,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
+ let cfgs=await client.from("app_settings").select("teacher_name,teacher_photo,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
+ if(cfgs.error){
+   console.warn("Lectura ampliada del perfil:",cfgs.error.message);
+   const respaldo=await client.from("app_settings").select("teacher_name,attendance_lat,attendance_lng,attendance_radius_m").eq("id",1).maybeSingle();
+   if(!respaldo.error) cfgs=respaldo;
+ }
  if(ss.error)throw ss.error;if(aa.error)throw aa.error;if(st.error)throw st.error;
  if(en.error)throw en.error;if(gg.error)throw gg.error;if(ex.error)throw ex.error;if(ep.error)throw ep.error;if(er.error)throw er.error;if(cfgs.error)throw cfgs.error;
- teacherName=cfgs.data?.teacher_name||"DOCENTE POR DEFINIR";
- teacherPhoto=cfgs.data?.teacher_photo||"";
+ teacherName=(cfgs.data?.teacher_name||teacherName||"DOCENTE POR DEFINIR").trim();
+ teacherPhoto=cfgs.data?.teacher_photo||teacherPhoto||"";
  const locStatus=document.getElementById("attendanceLocationStatus");
  const radiusInput=document.getElementById("attendanceRadius");
  if(radiusInput && cfgs.data?.attendance_radius_m) radiusInput.value=cfgs.data.attendance_radius_m;
@@ -2190,6 +2195,7 @@ async function saveTeacherName(){
  const {data,error}=await client.rpc("admin_set_teacher_profile",{p_name:n,p_photo:foto});
  if(error)return alert(error.message);
  alert((data&&data.message)||"Perfil del docente actualizado.");
+ const fp=document.getElementById("adminTeacherPhoto"); if(fp) fp.value="";
  await renderAll();
 }
 
