@@ -365,7 +365,7 @@ a[href="evaluacion.html"]{
 <label>Correo electrónico</label><input id="correo" type="email">
 <label>Grupo</label><select id="grupoForm"><option value="">Selecciona la clase primero</option></select>
 </div>
-<div class="signature-box" id="signatureBox"><label>Firma del estudiante</label><p class="signature-help">Firma dentro del recuadro con el dedo o con el mouse. La firma corresponde únicamente a esta asistencia.</p><canvas id="signatureCanvas" width="700" height="220"></canvas><div class="signature-actions"><button type="button" class="secondary" id="clearSignature">LIMPIAR FIRMA</button></div></div>
+<div class="signature-box" id="signatureBox"><label>Firma del estudiante</label><p class="signature-help" id="signatureHelp">Firma dentro del recuadro con el dedo o con el mouse. Esta firma se guardará una sola vez y se reutilizará en tus próximas asistencias.</p><canvas id="signatureCanvas" width="700" height="220"></canvas><div class="signature-actions"><button type="button" class="secondary" id="clearSignature">LIMPIAR FIRMA</button></div></div>
 <button type="submit" id="submitAttendance">FIRMAR Y REGISTRAR ASISTENCIA</button>
 </form><div id="ok" class="success"></div><div id="err" class="error"></div></section>
 </div>
@@ -396,10 +396,43 @@ const el={
   err:document.getElementById("err"),
   submitAttendance:document.getElementById("submitAttendance"),
   signatureCanvas:document.getElementById("signatureCanvas"),
-  clearSignature:document.getElementById("clearSignature")
+  clearSignature:document.getElementById("clearSignature"),
+  signatureBox:document.getElementById("signatureBox"),
+  signatureHelp:document.getElementById("signatureHelp")
 };
 
 let signatureDirty=false;
+let firmaGuardada=false;
+let firmaConsultaCedula="";
+
+async function consultarFirmaUnica(cedula){
+ const ced=String(cedula||"").trim();
+ firmaGuardada=false;
+ firmaConsultaCedula=ced;
+ if(!ced||!client){
+   el.signatureBox.style.display="block";
+   el.submitAttendance.textContent="FIRMAR Y REGISTRAR ASISTENCIA";
+   return false;
+ }
+ try{
+   const {data,error}=await client.rpc("obtener_firma_estudiante",{p_cedula:ced});
+   if(error)throw error;
+   const r=Array.isArray(data)?data[0]:data;
+   if(r&&r.tiene_firma){
+     firmaGuardada=true;
+     limpiarFirma();
+     el.signatureBox.style.display="none";
+     el.submitAttendance.textContent="REGISTRAR ASISTENCIA";
+     return true;
+   }
+ }catch(err){
+   console.warn("No fue posible consultar la firma única:",err);
+ }
+ el.signatureBox.style.display="block";
+ el.submitAttendance.textContent="FIRMAR Y REGISTRAR ASISTENCIA";
+ return false;
+}
+
 (function initSignature(){
  const c=el.signatureCanvas,ctx=c.getContext("2d"); ctx.lineWidth=3;ctx.lineCap="round";ctx.strokeStyle="#111827";let drawing=false;
  function pos(ev){const r=c.getBoundingClientRect(),p=ev.touches?ev.touches[0]:ev;return {x:(p.clientX-r.left)*(c.width/r.width),y:(p.clientY-r.top)*(c.height/r.height)}}
@@ -410,6 +443,9 @@ let signatureDirty=false;
  el.clearSignature.addEventListener("click",()=>{ctx.clearRect(0,0,c.width,c.height);signatureDirty=false});
 })();
 function limpiarFirma(){const c=el.signatureCanvas;c.getContext("2d").clearRect(0,0,c.width,c.height);signatureDirty=false}
+
+el.cedula.addEventListener("blur",()=>consultarFirmaUnica(el.cedula.value));
+el.cedula.addEventListener("change",()=>consultarFirmaUnica(el.cedula.value));
 
 async function loadPublicSettings(){
  if(!client)return;
@@ -552,8 +588,9 @@ el.form.onsubmit=async e=>{
      return msg("err","Completa todos los datos de registro.");
    }
  }
- if(!signatureDirty)return msg("err","Debes firmar en el recuadro antes de registrar la asistencia.");
- const firmaData=el.signatureCanvas.toDataURL("image/png");
+ if(firmaConsultaCedula!==ced) await consultarFirmaUnica(ced);
+ if(!firmaGuardada && !signatureDirty)return msg("err","Debes firmar en el recuadro la primera vez. En las próximas asistencias no tendrás que volver a firmar.");
+ const firmaData=(!firmaGuardada && signatureDirty)?el.signatureCanvas.toDataURL("image/png"):null;
  const record={session_ref:session.id,name:el.nombre.value.trim(),cedula:ced,celular:el.celular.value.trim(),carrera:el.carrera.value.trim(),semestre:el.semestre.value?Number(el.semestre.value):null,correo:el.correo.value.trim().toLowerCase(),group:session.group};
  let ubicacion;
  try{
@@ -589,18 +626,22 @@ el.form.onsubmit=async e=>{
     }
     throw new Error(r.message||"No fue posible registrar la asistencia.");
   }
-  const {data:firmaResp,error:firmaError}=await client.rpc("guardar_firma_asistencia",{p_session_ref:record.session_ref,p_cedula:record.cedula,p_firma:firmaData});
-  if(firmaError)throw firmaError;
-  const fr=Array.isArray(firmaResp)?firmaResp[0]:firmaResp;if(fr&&fr.ok===false)throw new Error(fr.message||"La asistencia se registró, pero no fue posible guardar la firma.");
+  if(!firmaGuardada){
+    const {data:firmaResp,error:firmaError}=await client.rpc("guardar_firma_unica_estudiante",{p_session_ref:record.session_ref,p_cedula:record.cedula,p_firma:firmaData});
+    if(firmaError)throw firmaError;
+    const fr=Array.isArray(firmaResp)?firmaResp[0]:firmaResp;
+    if(fr&&fr.ok===false)throw new Error(fr.message||"La asistencia se registró, pero no fue posible guardar la firma única.");
+    firmaGuardada=true;
+  }
   el.ok.innerHTML=`✓ ${esc((r&&r.message)||"Asistencia registrada correctamente.")}<br>${esc((r&&r.name)||record.name||record.cedula)} · ${new Date().toLocaleTimeString("es-CO")}`;el.ok.style.display="block";
-  e.target.reset();limpiarFirma();el.newStudentFields.style.display="none";el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=false;el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
+  e.target.reset();limpiarFirma();firmaGuardada=false;firmaConsultaCedula="";el.signatureBox.style.display="block";el.newStudentFields.style.display="none";el.nombre.required=el.celular.required=el.carrera.required=el.semestre.required=el.correo.required=false;el.grupoForm.innerHTML=`<option value="${session.group}">${session.group}</option>`;
  }catch(err){
    let text=err.message||"No fue posible registrar la asistencia.";
    if(text.includes("duplicate key")||text.includes("23505"))text="Este estudiante ya registró asistencia en esta clase.";
    msg("err",text);
  }finally{
    setAttendanceEnabled(!!session&&qrValidated);
-   el.submitAttendance.textContent="FIRMAR Y REGISTRAR ASISTENCIA";
+   el.submitAttendance.textContent=firmaGuardada?"REGISTRAR ASISTENCIA":"FIRMAR Y REGISTRAR ASISTENCIA";
  }
 };
 if(initial)loadSession();
