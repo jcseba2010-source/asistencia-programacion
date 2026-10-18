@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba QR 60 segundos · Universidad de Pamplona</title>
+<style>body{font:16px Arial,sans-serif;background:#f3f6fb;color:#10294c;padding:24px}main{max-width:660px;margin:auto;background:white;border-radius:14px;padding:30px;box-shadow:0 6px 28px #0b274e20}h1{color:#831627}h2{font-size:21px}.note{padding:12px;background:#fff6e4;border-left:4px solid #d2a028}label{display:block;margin-top:12px;font-weight:600}input{display:block;box-sizing:border-box;width:100%;padding:12px;margin-top:5px;border:1px solid #bac9d8;border-radius:7px}button{background:#0864d7;color:white;border:0;border-radius:8px;padding:12px 15px;margin:12px 8px 4px 0;font-weight:bold;cursor:pointer}button:disabled{opacity:.48;cursor:not-allowed}.danger{background:#8b1b2c}.result{background:#edf4fa;border-radius:8px;padding:15px;margin-top:14px}small{color:#52627b}#status{font-weight:600}code{overflow-wrap:anywhere}</style></head>
+<body><main><h1>Universidad de Pamplona</h1><h2>Prueba del código QR dinámico · 60 segundos</h2>
+<p class="note">Esta página utiliza exclusivamente la <strong>sesión de prueba 110</strong> (PROGRAMACION I, grupo A). No crea otra sesión, no registra asistencias y no muestra el token completo. La sesión debe permanecer activa para generar códigos.</p>
+<section id="login"><label>Correo docente<input id="email" type="email" autocomplete="username"></label><label>Contraseña<input id="password" type="password" autocomplete="current-password"></label><button id="enter" type="button">Ingresar</button></section>
+<section id="panel" hidden><p><strong>Sesión de prueba: 110 · Grupo A</strong></p><button id="generate" type="button">Generar / comprobar código de 60 s</button><button id="finish" class="danger" type="button">Finalizar sesión 110</button><div class="result" id="details" hidden><p>Vencimiento: <strong id="expiry"></strong></p><p>Segundos restantes: <strong id="remaining"></strong></p><p>Comparación con el código anterior: <strong id="comparison"></strong></p><small>El código secreto no se muestra ni se guarda. Pulse otra vez para comprobar si se mantiene vigente o se renueva al vencer.</small></div></section>
+<p id="status" role="status" aria-live="polite"></p><small>Archivo de prueba independiente. No sustituye el panel docente.</small></main>
+<script>
+'use strict';
+const API='https://asistencia-unipamplona-api.jcseba2010.workers.dev', SESSION_ID=110;
+const $=id=>document.getElementById(id);
+let auth='', previousToken=null, expiryTime=0, timer=null, finished=false;
+function status(s){$('status').textContent=s}
+async function request(path, options={}){
+ const headers={'Content-Type':'application/json',...(options.headers||{})};
+ if(auth)headers.Authorization='Bearer '+auth;
+ const r=await fetch(API+path,{...options,headers});
+ const data=await r.json().catch(()=>({mensaje:'Respuesta inválida'}));
+ if(!r.ok||data.ok===false)throw Error(data.mensaje||'HTTP '+r.status);
+ return data;
+}
+function countdown(){const sec=Math.max(0,Math.ceil((expiryTime-Date.now())/1000));$('remaining').textContent=sec+' s';if(sec===0&&expiryTime)status('El código venció. Pulse «Generar / comprobar» para solicitar uno nuevo.');}
+$('enter').onclick=async()=>{
+ $('enter').disabled=true;status('Verificando credenciales…');
+ try{
+  const data=await request('/api/docente/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+  if(!data.token)throw Error('No se recibió token de acceso');
+  auth=data.token;await request('/api/docente/verificar');
+  $('password').value='';$('login').hidden=true;$('panel').hidden=false;status('Acceso correcto. Ya puede probar el código de la sesión 110.');
+ }catch(e){auth='';status('No fue posible ingresar: '+e.message)}finally{$('enter').disabled=false}
+};
+$('generate').onclick=async()=>{
+ if(finished)return;
+ $('generate').disabled=true;status('Consultando código de la sesión 110…');
+ try{
+  const data=await request('/api/docente/generar-qr',{method:'POST',body:JSON.stringify({sesion_id:SESSION_ID})});
+  if(data.sesion_id!==SESSION_ID||typeof data.token!=='string'||!data.token||!Number.isFinite(Date.parse(data.expires_at)))throw Error('Respuesta incompleta del servidor');
+  const comparison=previousToken===null?'Primera emisión':previousToken===data.token?'Mismo código vigente':'Código renovado';
+  previousToken=data.token;expiryTime=Date.parse(data.expires_at);
+  $('expiry').textContent=new Date(expiryTime).toLocaleString('es-CO',{timeZone:'America/Bogota'});
+  $('comparison').textContent=comparison;$('details').hidden=false;
+  countdown();if(timer)clearInterval(timer);timer=setInterval(countdown,1000);
+  status('Solicitud exitosa: '+comparison+'. No se registraron asistencias.');
+ }catch(e){status('No se pudo generar el código: '+e.message)}finally{$('generate').disabled=finished}
+};
+$('finish').onclick=async()=>{
+ if(finished||!confirm('¿Finalizar la sesión de prueba 110? Después no se podrán generar más códigos.'))return;
+ $('finish').disabled=true;status('Cerrando sesión 110…');
+ try{
+  const data=await request('/api/docente/finalizar-clase',{method:'POST',body:JSON.stringify({sesion_id:SESSION_ID})});
+  finished=true;previousToken=null;expiryTime=0;if(timer)clearInterval(timer);
+  $('generate').disabled=true;$('details').hidden=true;status('Sesión 110 finalizada: '+data.mensaje);
+ }catch(e){status('No se pudo confirmar el cierre: '+e.message+'. Compruebe el estado en Cloudflare D1.');$('finish').disabled=false}
+};
+</script></body></html>
