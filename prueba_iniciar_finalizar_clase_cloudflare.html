@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba iniciar y finalizar clase · Universidad de Pamplona</title>
+<style>body{font:16px Arial,sans-serif;background:#f4f6fa;color:#0b274e;padding:24px}main{max-width:650px;margin:auto;background:#fff;padding:28px;border-radius:12px;box-shadow:0 4px 20px #001b3620}h1{color:#831628}label{display:block;margin:12px 0}input{display:block;box-sizing:border-box;width:100%;padding:12px;margin:5px 0 12px;border:1px solid #b5c4d6;border-radius:7px}button{background:#075ed4;color:#fff;border:0;padding:12px;border-radius:7px;cursor:pointer;margin:5px 6px 5px 0}button:disabled{opacity:.45;cursor:not-allowed}.end{background:#851c2d}.note{background:#fff5df;border-left:4px solid #d8a32a;padding:12px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef3f9;padding:12px;border-radius:7px}small{color:#586a7c}</style></head>
+<body><main><h1>Universidad de Pamplona</h1><h2>Prueba de inicio y finalización de clase</h2><p class="note">Esta prueba crea una sesión de <strong>PROGRAMACION I · Grupo A</strong> marcada como prueba (<code>es_clase_real = 0</code>). No registra asistencias ni genera códigos QR. Debe finalizarse antes de cerrar la página.</p>
+<section id="login"><label>Correo docente<input id="email" type="email" autocomplete="username"></label><label>Contraseña<input id="password" type="password" autocomplete="current-password"></label><button id="enter" type="button">Ingresar</button></section>
+<section id="panel" hidden><p id="sessionInfo">Acceso correcto. No ha iniciado ninguna clase en esta prueba.</p><button id="start" type="button">Iniciar clase de prueba</button><button id="end" class="end" type="button" disabled>Finalizar clase de prueba</button><p><small>Si se interrumpe la página tras iniciar la clase, anote el ID mostrado y cierre esa sesión desde Cloudflare D1.</small></p></section>
+<p id="status" role="status" aria-live="polite"></p><pre id="result" hidden></pre><small>Archivo independiente de prueba. No sustituye el panel docente ni guarda su contraseña.</small></main>
+<script>
+'use strict';
+const API='https://asistencia-unipamplona-api.jcseba2010.workers.dev';
+let token='',sesionId=null;
+const $=id=>document.getElementById(id);
+function show(message,data){$('status').textContent=message;$('result').hidden=!data;if(data)$('result').textContent=JSON.stringify(data,null,2)}
+async function api(path,options={}){
+ const headers={'Content-Type':'application/json',...(options.headers||{})};
+ if(token)headers.Authorization='Bearer '+token;
+ const response=await fetch(API+path,{...options,headers});
+ const data=await response.json().catch(()=>({mensaje:'Respuesta inválida del servidor'}));
+ if(!response.ok||data.ok===false)throw Error(data.mensaje||'Error HTTP '+response.status);
+ return data;
+}
+$('enter').onclick=async()=>{
+ $('enter').disabled=true;show('Verificando acceso…');
+ try{
+  const result=await api('/api/docente/login',{method:'POST',body:JSON.stringify({email:$('email').value.trim(),password:$('password').value})});
+  if(!result.token)throw Error('No se recibió token de acceso');
+  token=result.token;await api('/api/docente/verificar');
+  $('password').value='';$('login').hidden=true;$('panel').hidden=false;
+  show('Acceso correcto. Todavía no se ha creado ninguna clase.');
+ }catch(e){token='';show('Error al ingresar: '+e.message)}
+ finally{$('enter').disabled=false}
+};
+$('start').onclick=async()=>{
+ if(sesionId!==null)return;
+ if(!confirm('¿Iniciar UNA clase de PRUEBA de Programación I, grupo A? Deberá finalizarla después.'))return;
+ $('start').disabled=true;show('Iniciando clase de prueba…');
+ try{
+  const result=await api('/api/docente/iniciar-clase',{method:'POST',body:JSON.stringify({asignatura:'PROGRAMACION I',grupo:'A'})});
+  if(!Number.isSafeInteger(Number(result.sesion_id))||Number(result.sesion_id)<=0)throw Error('No se recibió un ID de sesión válido. Verifique en D1 antes de volver a intentar.');
+  sesionId=Number(result.sesion_id);
+  $('sessionInfo').textContent='Sesión de prueba activa: '+sesionId+' · PROGRAMACION I · Grupo A';
+  $('end').disabled=false;
+  show('Clase de prueba iniciada. Ahora pulse «Finalizar clase de prueba».',{sesion_id:sesionId,asignatura:result.asignatura,grupo:result.grupo,mensaje:result.mensaje});
+ }catch(e){show('No se pudo confirmar el inicio: '+e.message+'. Si la respuesta falló, compruebe D1 antes de volver a intentar.');}
+};
+$('end').onclick=async()=>{
+ if(sesionId===null)return;
+ if(!confirm('¿Finalizar la sesión de prueba '+sesionId+'?'))return;
+ $('end').disabled=true;show('Finalizando la sesión '+sesionId+'…');
+ try{
+  const result=await api('/api/docente/finalizar-clase',{method:'POST',body:JSON.stringify({sesion_id:sesionId})});
+  $('sessionInfo').textContent='Sesión '+sesionId+' finalizada correctamente.';
+  show('Clase de prueba finalizada. Envíeme esta pantalla.',{sesion_id:result.sesion_id,mensaje:result.mensaje,asignatura:result.asignatura,grupo:result.grupo});
+ }catch(e){show('No se pudo finalizar: '+e.message+'. Conserve el ID '+sesionId+' para verificar el estado en D1.');$('end').disabled=false;}
+};
+</script></body></html>
