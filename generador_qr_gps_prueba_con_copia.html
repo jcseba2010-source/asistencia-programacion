@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generador QR GPS de pruebas | Universidad de Pamplona</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#123528;background:#eff4f1}*{box-sizing:border-box}body{margin:0}header{background:#075333;color:white;text-align:center;padding:22px 12px;border-bottom:5px solid #d9ac45}h1{margin:0 0 8px;font-size:clamp(25px,5vw,36px)}header p{margin:0}main{max-width:680px;margin:26px auto;padding:25px;background:white;border:1px solid #d7e4da;border-radius:16px;box-shadow:0 8px 25px #193c2920}.tag{display:inline-block;background:#fff0c8;padding:8px 12px;border-radius:20px;color:#674300;font-size:13px;font-weight:bold}h2{font-size:23px}label{display:block;font-weight:bold;margin:15px 0 5px}input{display:block;width:100%;padding:13px;border:1px solid #9cb6a5;border-radius:8px;font-size:16px}button{background:#075333;color:white;border:0;border-radius:8px;padding:14px 20px;font-size:16px;font-weight:bold;margin-top:17px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.secondary{background:#60796b}.qrbox{margin-top:20px;border:1px solid #d6e1da;padding:16px;border-radius:12px;text-align:center}#qr{display:flex;align-items:center;justify-content:center;min-height:260px}#qr img,#qr canvas{max-width:100%;height:auto}#count{font-size:42px;font-weight:bold;color:#8b1c30}#msg{padding:12px 0;overflow-wrap:anywhere}.note{background:#fff3d8;border-left:4px solid #d9ac45;padding:12px;line-height:1.5}.muted{color:#52685c;font-size:14px}footer{text-align:center;padding:16px;color:#52685c}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>Universidad de Pamplona</h1><p>Sistema Institucional de Asistencia · Generador QR GPS de pruebas</p></header>
+<main>
+<span class="tag">MODO DE PRUEBAS · GPS 30 METROS</span>
+<h2>QR automático de 60 segundos con GPS</h2>
+<p class="note"><b>Entorno independiente de Cloudflare.</b> Se usa la sesión de prueba 1. Antes de generar el QR, se solicita la ubicación del docente y se envía al Worker de pruebas. No se modifican registros reales.</p>
+<p><b>Asignatura:</b> PROGRAMACIÓN I · <b>Grupo:</b> A · <b>Sesión de prueba:</b> 1</p>
+<section id="login">
+<label for="email">Correo del docente de pruebas</label><input id="email" type="email" autocomplete="username" placeholder="Correo de pruebas">
+<label for="pass">Contraseña del docente de pruebas</label><input id="pass" type="password" autocomplete="current-password" placeholder="Contraseña de pruebas">
+<button id="enter">Ingresar al entorno de pruebas</button>
+</section>
+<section id="panel" hidden>
+<p class="muted">La sesión de prueba 1 ya está configurada. No se crearán nuevas sesiones.</p>
+<p id="gps" class="note" role="status">GPS pendiente. Para activar el QR deberá permitir el acceso a su ubicación.</p>
+<button id="start">Obtener GPS y mostrar QR de prueba</button>
+<button id="stop" class="secondary" disabled>Detener QR</button>
+<div id="qrbox" class="qrbox" hidden><h3>QR de prueba · Sesión 1</h3><div id="qr"></div><div id="count">—</div><button id="copy" type="button">Copiar código QR</button><p id="copymsg" class="muted" aria-live="polite"></p><p class="muted">El código se renueva automáticamente cuando vence.</p></div>
+</section>
+<p id="msg" role="status" aria-live="polite"></p>
+</main><footer>Universidad de Pamplona · Entorno independiente de pruebas</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+'use strict';
+const API='https://asistencia-unipamplona-pruebas.jcseba2010.workers.dev';
+const $=id=>document.getElementById(id);
+let auth='',running=false,busy=false,expiry=0,last='',clock=null,starting=false,cancelStart=false;
+function say(message){$('msg').textContent=message}
+async function api(path,body){
+ const headers={'Content-Type':'application/json'};
+ if(auth)headers.Authorization='Bearer '+auth;
+ const response=await fetch(API+path,{method:'POST',headers,body:JSON.stringify(body)});
+ let data;
+ try{data=await response.json()}catch{throw Error('Respuesta no válida del servidor de pruebas')}
+ if(!response.ok||data.ok===false)throw Error(data.mensaje||data.error||data.message||'Error '+response.status);
+ return data;
+}
+$('enter').onclick=async()=>{
+ const btn=$('enter');btn.disabled=true;
+ try{
+  const data=await api('/api/docente/login',{email:$('email').value.trim(),password:$('pass').value});
+  if(!data.token)throw Error('No se recibió el token de acceso');
+  auth=data.token;$('pass').value='';$('login').hidden=true;$('panel').hidden=false;
+  say('Ingreso correcto. Active el GPS para mostrar el QR de pruebas.');
+ }catch(err){auth='';say('No fue posible ingresar: '+err.message)}
+ finally{btn.disabled=false}
+};
+function getGPS(){
+ return new Promise((resolve,reject)=>{
+  if(!window.isSecureContext||!navigator.geolocation){
+   reject(Error('El GPS requiere HTTPS y un navegador con geolocalización.'));return;
+  }
+  navigator.geolocation.getCurrentPosition(
+   pos=>resolve(pos.coords),
+   err=>reject(Error(err.code===1?'Permiso de ubicación denegado. Habilite la ubicación del navegador.':err.code===2?'No se pudo determinar la ubicación. Pruebe cerca de una ventana o al aire libre.':'El GPS tardó demasiado. Intente nuevamente.')),
+   {enableHighAccuracy:true,timeout:25000,maximumAge:0}
+  );
+ });
+}
+function clearQR(){last='';expiry=0;$('qr').replaceChildren();$('count').textContent='—';$('copymsg').textContent=''}
+async function renew(){
+ if(!running||busy)return;
+ busy=true;
+ try{
+  const data=await api('/api/docente/generar-qr',{sesion_id:1});
+  if(!running)return;
+  if(Number(data.sesion_id)!==1||!(/^[a-fA-F0-9]{64}$/.test(data.token||''))||!Number.isFinite(Date.parse(data.expires_at)))
+   throw Error('El servidor devolvió un código o sesión incompatibles');
+  expiry=Date.parse(data.expires_at);
+  if(last!==data.token){
+   if(typeof QRCode==='undefined')throw Error('No se pudo cargar la biblioteca para mostrar QR');
+   $('qr').replaceChildren();
+   new QRCode($('qr'),{text:data.token,width:270,height:270,correctLevel:QRCode.CorrectLevel.M});
+   last=data.token;
+   say('QR válido para la sesión 1. El estudiante debe utilizar la página GPS de pruebas.');
+  }
+ }catch(err){clearQR();say('Error al generar QR: '+err.message)}
+ finally{busy=false}
+}
+$('copy').onclick=async()=>{
+ if(!running||!last||Date.now()>=expiry){$('copymsg').textContent='El QR ya venció. Espere el siguiente código.';return}
+ try{
+  await navigator.clipboard.writeText(last);
+  $('copymsg').textContent='Código copiado. Abra la página del estudiante y péguelo antes de que venza.';
+ }catch(err){
+  const field=document.createElement('textarea');
+  field.value=last;field.style.position='fixed';field.style.top='0';field.style.left='0';
+  document.body.appendChild(field);field.focus();field.select();
+  const ok=document.execCommand('copy');field.remove();
+  $('copymsg').textContent=ok?'Código copiado. Péguelo antes de que venza.':'No se pudo copiar automáticamente. Revise los permisos del navegador.';
+ }
+};
+function tick(){
+ if(!running)return;
+ const seconds=Math.max(0,Math.ceil((expiry-Date.now())/1000));
+ $('count').textContent=seconds+' s';
+ if(seconds===0&&!busy){$('qr').replaceChildren();last='';renew()}
+}
+$('start').onclick=async()=>{
+ if(starting||running)return;
+ starting=true;cancelStart=false;$('start').disabled=true;$('stop').disabled=false;
+ try{
+  $('gps').textContent='Solicitando ubicación GPS de alta precisión…';
+  say('Permita la ubicación cuando el navegador lo solicite.');
+  const coords=await getGPS();
+  if(cancelStart)return;
+  const latitud=coords.latitude,longitud=coords.longitude,precision_metros=coords.accuracy;
+  if(!Number.isFinite(precision_metros)||precision_metros<=0||precision_metros>30)
+   throw Error('Precisión GPS insuficiente: '+Math.round(precision_metros)+' m. Se requieren 30 m o menos. Intente al aire libre.');
+  $('gps').textContent='Ubicación obtenida. Precisión aproximada: '+Math.round(precision_metros)+' m. Registrando ubicación de prueba…';
+  await api('/api/docente/ubicacion-gps-prueba',{sesion_id:1,latitud,longitud,precision_metros});
+  if(cancelStart)return;
+  $('gps').textContent='GPS del docente registrado. Precisión: '+Math.round(precision_metros)+' m. Radio permitido: 30 m.';
+  running=true;$('qrbox').hidden=false;
+  await renew();
+  if(running){clock=setInterval(tick,1000);tick()}
+ }catch(err){
+  $('gps').textContent='GPS no activado.';
+  say('No se puede mostrar el QR: '+err.message);
+  running=false;clearQR();$('qrbox').hidden=true;
+ }finally{
+  starting=false;
+  if(!running){$('start').disabled=false;$('stop').disabled=true}
+ }
+};
+$('stop').onclick=()=>{
+ cancelStart=true;running=false;clearInterval(clock);clock=null;clearQR();
+ $('qrbox').hidden=true;$('start').disabled=starting;$('stop').disabled=true;
+ say('Generador detenido. No se registró ninguna asistencia.');
+};
+window.addEventListener('beforeunload',event=>{if(running){event.preventDefault();event.returnValue=''}});
+</script>
+</body></html>
