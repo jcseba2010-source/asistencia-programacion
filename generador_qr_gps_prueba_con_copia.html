@@ -71,9 +71,9 @@ async function renew(){
  if(!running||busy)return;
  busy=true;
  try{
-  const data=await api('/api/docente/generar-qr',{sesion_id:1});
+  const data=await api('/api/docente/generar-qr',{sesion_id:2});
   if(!running)return;
-  if(Number(data.sesion_id)!==1||!(/^[a-fA-F0-9]{64}$/.test(data.token||''))||!Number.isFinite(Date.parse(data.expires_at)))
+  if(Number(data.sesion_id)!==2||!(/^[a-fA-F0-9]{64}$/.test(data.token||''))||!Number.isFinite(Date.parse(data.expires_at)))
    throw Error('El servidor devolvió un código o sesión incompatibles');
   expiry=Date.parse(data.expires_at);
   if(last!==data.token){
@@ -117,7 +117,7 @@ $('start').onclick=async()=>{
   if(!Number.isFinite(precision_metros)||precision_metros<=0||precision_metros>30)
    throw Error('Precisión GPS insuficiente: '+Math.round(precision_metros)+' m. Se requieren 30 m o menos. Intente al aire libre.');
   $('gps').textContent='Ubicación obtenida. Precisión aproximada: '+Math.round(precision_metros)+' m. Registrando ubicación de prueba…';
-  await api('/api/docente/ubicacion-gps-prueba',{sesion_id:1,latitud,longitud,precision_metros});
+  await api('/api/docente/ubicacion-gps-prueba',{sesion_id:2,latitud,longitud,precision_metros});
   if(cancelStart)return;
   $('gps').textContent='GPS del docente registrado. Precisión: '+Math.round(precision_metros)+' m. Radio permitido: 30 m.';
   running=true;$('qrbox').hidden=false;
